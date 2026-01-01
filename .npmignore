@@ -1,0 +1,51 @@
+# Source files (only ship dist/)
+src/
+*.ts
+!*.d.ts
+
+# Development
+.env
+.env.*
+*.log
+node_modules/
+.vscode/
+.idea/
+
+# Tests
+test/
+tests/
+*.test.ts
+*.spec.ts
+coverage/
+
+# Build artifacts
+*.tsbuildinfo
+tsconfig.json
+
+# Documentation (not needed in package)
+docs/
+examples/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Package managers
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
+*.tmp

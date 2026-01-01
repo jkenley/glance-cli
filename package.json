@@ -1,0 +1,72 @@
+{
+    "name": "glance-cli",
+    "version": "0.7.0",
+    "description": "AI-powered web reader for your terminal – Fetch, extract, and summarize webpages with local or cloud AI",
+    "keywords": [
+        "cli",
+        "ai",
+        "summarize",
+        "web",
+        "scraper",
+        "openai",
+        "gemini",
+        "ollama",
+        "gpt",
+        "llm",
+        "content-extraction",
+        "web-reader",
+        "terminal",
+        "screenshot"
+    ],
+    "author": {
+        "name": "Kenley Jean-Louis",
+        "email": "alo@jkenley.me",
+        "url": "https://github.com/jkenley"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/jkenley/glance-cli#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jkenley/glance-cli.git"
+    },
+    "bugs": {
+        "url": "https://github.com/jkenley/glance-cli/issues"
+    },
+    "bin": {
+        "glance": "./dist/cli.js"
+    },
+    "type": "module",
+    "engines": {
+        "node": ">=18.0.0",
+        "bun": ">=1.0.0"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md"
+    ],
+    "scripts": {
+        "build": "bun build ./src/cli.ts --outdir ./dist --target node --minify",
+        "prepublishOnly": "bun run build && bun test",
+        "test": "bun test",
+        "dev": "bun run ./src/cli.ts",
+        "clean": "rm -rf dist",
+        "prepare": "bun run build"
+    },
+    "dependencies": {
+        "cheerio": "^1.0.0-rc.12",
+        "chalk": "^5.3.0",
+        "ora": "^8.0.1",
+        "openai": "^4.47.1",
+        "@google/genai": "^0.1.0",
+        "puppeteer": "^22.6.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
