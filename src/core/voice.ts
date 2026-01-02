@@ -379,7 +379,7 @@ export class VoiceSynthesizer {
             }
         } else {
             // Auto-select best voice for language
-            voiceId = langVoices.default || langVoices[Object.keys(langVoices)[0]];
+            voiceId = langVoices.default || langVoices[Object.keys(langVoices)[0] as keyof typeof langVoices];
         }
         
         // Get optimal model for language
@@ -450,6 +450,27 @@ export class VoiceSynthesizer {
         return voice;
     }
     
+    private getVoiceDescription(voiceName: string): string {
+        const descriptions: { [key: string]: string } = {
+            'alloy': 'Warm, Friendly (Rachel)',
+            'echo': 'Professional, Clear (Clyde)',
+            'nova': 'Energetic, Enthusiastic (Charlie)',
+            'shimmer': 'Clear, Articulate (Charlotte)',
+            'onyx': 'Deep, Authoritative (Callum)',
+            'fable': 'Expressive, Dynamic (Gigi)',
+            'antoine': 'French Male, Natural',
+            'charlotte': 'French Female, Clear',
+            'henri': 'French Male, Professional',
+            'marie': 'French Female, Warm',
+            'antonio': 'Spanish Male, Neutral',
+            'isabella': 'Spanish Female, Clear',
+            'pablo': 'Spanish Male, Energetic',
+            'sofia': 'Spanish Female, Professional'
+        };
+        
+        return descriptions[voiceName] || 'Available Voice';
+    }
+    
     private cleanTextForSpeech(text: string): string {
         // Remove markdown formatting
         let cleaned = text
@@ -481,83 +502,82 @@ export class VoiceSynthesizer {
         if (this.client && this.apiKey) {
             try {
                 const voices = await this.client.voices.getAll();
+                const result: string[] = [];
                 
-                if (language && language !== 'en') {
-                    // Show language-specific voices first, then all available
-                    const langVoices = LANGUAGE_VOICES[language as keyof typeof LANGUAGE_VOICES];
-                    const result: string[] = [];
-                    
-                    if (langVoices) {
-                        result.push(`\n--- ${language.toUpperCase()} Optimized Voices ---`);
-                        Object.entries(langVoices).forEach(([name, id]) => {
-                            if (name !== 'default') {
-                                const voice = voices.voices.find(v => v.voice_id === id);
-                                if (voice) {
-                                    result.push(`${name} - ${voice.name} (${voice.voice_id}) [RECOMMENDED]`);
-                                }
-                            }
-                        });
-                        result.push('\n--- All Available Voices ---');
+                result.push('🎤 Available Voices (use name or voice ID):');
+                result.push('');
+                
+                // English voices
+                result.push('🇺🇸 ENGLISH VOICES:');
+                Object.entries(LANGUAGE_VOICES.en).forEach(([name, id]) => {
+                    if (name !== 'default') {
+                        const voice = voices.voices.find(v => v.voice_id === id);
+                        if (voice) {
+                            result.push(`  • ${name} → ${this.getVoiceDescription(name)}`);
+                        }
                     }
-                    
-                    voices.voices.forEach(v => {
-                        result.push(`${v.name} (${v.voice_id})`);
-                    });
-                    
-                    return result;
-                } else {
-                    // Default: show all voices with language annotations
-                    const result: string[] = [];
-                    
-                    result.push('--- English Voices (Default) ---');
-                    Object.entries(LANGUAGE_VOICES.en).forEach(([name, id]) => {
+                });
+                
+                result.push('');
+                
+                // French voices
+                if (LANGUAGE_VOICES.fr) {
+                    const frenchVoices: string[] = [];
+                    Object.entries(LANGUAGE_VOICES.fr).forEach(([name, id]) => {
                         if (name !== 'default') {
                             const voice = voices.voices.find(v => v.voice_id === id);
                             if (voice) {
-                                result.push(`${name} - ${voice.name} (${voice.voice_id})`);
+                                frenchVoices.push(`  • ${name} → ${this.getVoiceDescription(name)}`);
                             }
                         }
                     });
-                    
-                    if (LANGUAGE_VOICES.fr) {
-                        result.push('\n--- French Voices ---');
-                        Object.entries(LANGUAGE_VOICES.fr).forEach(([name, id]) => {
-                            if (name !== 'default') {
-                                const voice = voices.voices.find(v => v.voice_id === id);
-                                if (voice) {
-                                    result.push(`${name} - ${voice.name} (${voice.voice_id})`);
-                                }
-                            }
-                        });
+                    if (frenchVoices.length > 0) {
+                        result.push('🇫🇷 FRENCH VOICES:');
+                        result.push(...frenchVoices);
+                        result.push('');
                     }
-                    
-                    if (LANGUAGE_VOICES.es) {
-                        result.push('\n--- Spanish Voices ---');
-                        Object.entries(LANGUAGE_VOICES.es).forEach(([name, id]) => {
-                            if (name !== 'default') {
-                                const voice = voices.voices.find(v => v.voice_id === id);
-                                if (voice) {
-                                    result.push(`${name} - ${voice.name} (${voice.voice_id})`);
-                                }
-                            }
-                        });
-                    }
-                    
-                    result.push('\n--- All Other Voices ---');
-                    const usedIds = new Set([
-                        ...Object.values(LANGUAGE_VOICES.en || {}),
-                        ...Object.values(LANGUAGE_VOICES.fr || {}),
-                        ...Object.values(LANGUAGE_VOICES.es || {}),
-                    ]);
-                    
-                    voices.voices
-                        .filter(v => !usedIds.has(v.voice_id))
-                        .forEach(v => {
-                            result.push(`${v.name} (${v.voice_id})`);
-                        });
-                    
-                    return result;
                 }
+                
+                // Spanish voices
+                if (LANGUAGE_VOICES.es) {
+                    const spanishVoices: string[] = [];
+                    Object.entries(LANGUAGE_VOICES.es).forEach(([name, id]) => {
+                        if (name !== 'default') {
+                            const voice = voices.voices.find(v => v.voice_id === id);
+                            if (voice) {
+                                spanishVoices.push(`  • ${name} → ${this.getVoiceDescription(name)}`);
+                            }
+                        }
+                    });
+                    if (spanishVoices.length > 0) {
+                        result.push('🇪🇸 SPANISH VOICES:');
+                        result.push(...spanishVoices);
+                        result.push('');
+                    }
+                }
+                
+                // Haitian Creole note
+                if (LANGUAGE_VOICES.ht) {
+                    result.push('🇭🇹 HAITIAN CREOLE:');
+                    result.push('  • Uses English voice with optimized settings');
+                    result.push('');
+                }
+                
+                result.push('💡 USAGE EXAMPLES:');
+                result.push('  glance https://example.com --voice nova --read');
+                result.push('  glance https://example.com --voice antoine -l fr --read');
+                result.push('  glance https://example.com --voice isabella -l es --read');
+                result.push('');
+                result.push('⚠️  NOTE: Only the voices listed above work with simple names.');
+                result.push('   For other voices, use the full voice ID (long string).');
+                result.push('');
+                result.push('🔍 ALL AVAILABLE VOICES IN YOUR ACCOUNT:');
+                voices.voices.forEach(v => {
+                    result.push(`   ${v.name} (${v.voice_id})`);
+                });
+                
+                return result;
+                
             } catch (error) {
                 console.warn('Failed to fetch ElevenLabs voices:', error);
             }

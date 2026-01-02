@@ -118,6 +118,15 @@ glance https://article.com --audio-output summary.mp3
 
 # Read aloud immediately
 glance https://blog.com --read
+
+# Use specific voice
+glance https://news.com --voice nova --read
+
+# French content with French voice
+glance https://lemonde.fr --voice antoine -l fr --read
+
+# Spanish content with Spanish voice
+glance https://elpais.com --voice isabella -l es --read
 ```
 
 ### Advanced Features
@@ -216,6 +225,36 @@ glance https://api-docs.com --ask "How do I authenticate?" --format plain
 
 ---
 
+## 🎤 Voice & Language Support
+
+Glance supports **multi-language voice synthesis** with ElevenLabs integration:
+
+```bash
+# List available voices by language
+glance --list-voices
+
+# English voices (default)
+glance https://news.com --voice nova --read       # Energetic
+glance https://docs.com --voice onyx --read       # Deep, authoritative
+
+# French voices  
+glance https://lemonde.fr --voice antoine -l fr --read
+
+# Spanish voices
+glance https://elpais.com --voice isabella -l es --read
+
+# Haitian Creole support
+glance https://example.ht --voice nova -l ht --read
+```
+
+**Voice Quality Levels:**
+- **Free**: System TTS (macOS Say, Windows SAPI, Linux espeak)
+- **Premium**: ElevenLabs voices with natural pronunciation (requires API key)
+
+Set `ELEVENLABS_API_KEY` environment variable for premium voices.
+
+---
+
 ## 📚 All Options
 
 ```bash
@@ -243,8 +282,9 @@ glance <url> --ask "question" # Custom Q&A
 # Voice/Audio
 --read, --speak               # Read aloud (text-to-speech)
 --audio-output <file>         # Save as MP3
---voice <name>                # Choose voice (alloy, echo, nova, etc.)
---list-voices                 # Show available voices
+--voice <name>                # Choose voice (nova, onyx, antoine, etc.)
+--list-voices                 # Show available voices by language
+-l, --language <code>         # Language for voice selection (en, fr, es, ht)
 
 # Advanced
 --screenshot <file>           # Capture screenshot
