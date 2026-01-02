@@ -109,8 +109,12 @@ function sanitizeText(text: string, maxLength?: number): string {
 
     let sanitized = text.trim();
 
-    // Remove potential control characters
-    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+    // Remove all control characters and non-printable characters except newlines and tabs
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "");
+    // Remove any remaining binary/invalid UTF-8 sequences
+    sanitized = sanitized.replace(/[\uFFFD\uFEFF]/g, "");
+    // Remove zero-width characters that can cause display issues
+    sanitized = sanitized.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
 
     // Truncate if needed
     if (maxLength && sanitized.length > maxLength) {

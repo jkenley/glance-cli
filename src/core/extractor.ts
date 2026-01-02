@@ -251,6 +251,12 @@ function findBestContent($: CheerioAPI): Cheerio<Element> | null {
  */
 function cleanText(text: string): string {
     return text
+        // Remove all control characters and non-printable characters except newlines and tabs
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
+        // Remove any remaining binary/invalid UTF-8 sequences
+        .replace(/[\uFFFD\uFEFF]/g, "")
+        // Remove zero-width characters that can cause display issues
+        .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
         // Normalize whitespace
         .replace(/\s+/g, " ")
         // Convert multiple newlines to double newline
