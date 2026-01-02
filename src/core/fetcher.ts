@@ -17,6 +17,140 @@
 
 import puppeteer, { Browser, Page } from "puppeteer";
 
+// === Text Encoding Utilities ===
+
+/**
+ * Get text content with proper encoding handling
+ */
+async function getTextWithProperEncoding(response: Response): Promise<string> {
+    // Get the content type header to check for encoding
+    const contentType = response.headers.get("content-type") || "";
+    
+    // Try to extract encoding from Content-Type header
+    const charsetMatch = contentType.match(/charset=([^;]+)/i);
+    const declaredCharset = charsetMatch ? charsetMatch[1].toLowerCase().trim() : null;
+    
+    try {
+        // Get response as array buffer first to handle encoding properly
+        const buffer = await response.arrayBuffer();
+        
+        // Convert to Uint8Array for processing
+        const bytes = new Uint8Array(buffer);
+        
+        // Try to detect charset from HTML meta tags if not in header
+        let detectedCharset = declaredCharset;
+        
+        if (!detectedCharset && bytes.length > 0) {
+            // Convert first 1024 bytes to string to look for meta charset
+            const decoder = new TextDecoder('utf-8', { fatal: false });
+            const preview = decoder.decode(bytes.slice(0, Math.min(1024, bytes.length)));
+            
+            // Look for charset in meta tags
+            const metaCharsetMatch = preview.match(/<meta[^>]*charset[=\s]*["\']?([^"'\s>]+)/i);
+            if (metaCharsetMatch) {
+                detectedCharset = metaCharsetMatch[1].toLowerCase().trim();
+            } else {
+                // Look for HTTP-EQUIV content-type
+                const httpEquivMatch = preview.match(/<meta[^>]*http-equiv[=\s]*["\']?content-type["\']?[^>]*content[=\s]*["\']?[^"']*charset[=\s]*([^"'\s;]+)/i);
+                if (httpEquivMatch) {
+                    detectedCharset = httpEquivMatch[1].toLowerCase().trim();
+                }
+            }
+        }
+        
+        // Fallback to utf-8 if no charset detected
+        if (!detectedCharset) {
+            detectedCharset = 'utf-8';
+        }
+        
+        // Handle common charset variations
+        const normalizedCharset = normalizeCharset(detectedCharset);
+        
+        // Try to decode with the detected/declared charset
+        try {
+            const decoder = new TextDecoder(normalizedCharset, { fatal: false });
+            let text = decoder.decode(bytes);
+            
+            // Clean up any remaining problematic characters
+            text = cleanEncodingArtifacts(text);
+            
+            return text;
+        } catch (encodingError) {
+            // If charset-specific decoding fails, try UTF-8 with error replacement
+            const decoder = new TextDecoder('utf-8', { fatal: false });
+            let text = decoder.decode(bytes);
+            
+            // Clean up any remaining problematic characters
+            text = cleanEncodingArtifacts(text);
+            
+            return text;
+        }
+    } catch (error) {
+        // Ultimate fallback - use response.text() but clean it
+        const text = await response.text();
+        return cleanEncodingArtifacts(text);
+    }
+}
+
+/**
+ * Normalize charset names to standard forms
+ */
+function normalizeCharset(charset: string): string {
+    const normalized = charset.toLowerCase().replace(/[-_\s]/g, '');
+    
+    // Common charset mappings
+    const charsetMap: Record<string, string> = {
+        'iso88591': 'iso-8859-1',
+        'latin1': 'iso-8859-1',
+        'utf8': 'utf-8',
+        'windows1252': 'windows-1252',
+        'cp1252': 'windows-1252',
+        'ascii': 'us-ascii',
+        'usascii': 'us-ascii',
+        'gb2312': 'gb18030', // GB2312 is subset of GB18030
+        'gbk': 'gb18030',    // GBK is subset of GB18030
+    };
+    
+    return charsetMap[normalized] || charset;
+}
+
+/**
+ * Clean up common encoding artifacts and problematic characters
+ */
+function cleanEncodingArtifacts(text: string): string {
+    return text
+        // Remove null bytes and other control characters that can cause terminal issues
+        .replace(/\x00/g, '')
+        // Remove DEL character
+        .replace(/\x7F/g, '')
+        // Remove other problematic control characters (except \n, \r, \t)
+        .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, '')
+        // Remove Unicode replacement character that indicates encoding problems
+        .replace(/\uFFFD/g, '')
+        // Remove byte order marks that can cause display issues
+        .replace(/\uFEFF/g, '')
+        // Remove zero-width characters that can mess up display
+        .replace(/[\u200B-\u200D\u2060]/g, '')
+        // Handle common Windows-1252 characters that get mangled in UTF-8
+        .replace(/â€™/g, "'")  // Smart apostrophe
+        .replace(/â€œ/g, '"')  // Smart quote open
+        .replace(/â€\x9D/g, '"')  // Smart quote close
+        .replace(/â€"/g, '—')  // Em dash
+        .replace(/â€\x93/g, '–')  // En dash
+        .replace(/Â /g, ' ')   // Non-breaking space issues
+        // Additional common encoding artifacts
+        .replace(/â¢/g, '•')   // Bullet point
+        .replace(/Ã©/g, 'é')   // e with acute
+        .replace(/Ã¡/g, 'á')   // a with acute
+        .replace(/Ã­/g, 'í')   // i with acute
+        .replace(/Ã³/g, 'ó')   // o with acute
+        .replace(/Ãº/g, 'ú')   // u with acute
+        .replace(/Ã±/g, 'ñ')   // n with tilde
+        .replace(/Ã\x87/g, 'Ç')   // C with cedilla
+        // Remove any remaining high-bit characters that look like encoding artifacts
+        .replace(/[^\x00-\x7F\u00A0-\uFFFF]/g, '');
+}
+
 // === Configuration ===
 const FETCH_CONFIG = {
     // Timeouts
@@ -278,8 +412,8 @@ async function simpleFetch(
             validateContentSize(size, options.maxSize);
         }
 
-        // Get content
-        const html = await response.text();
+        // Get content with proper encoding handling
+        const html = await getTextWithProperEncoding(response);
 
         // Validate actual size
         validateContentSize(html.length, options.maxSize);
