@@ -35,7 +35,7 @@
         "url": "https://github.com/jkenley/glance-cli/issues"
     },
     "bin": {
-        "glance": "dist/cli.js"
+        "glance": "./dist/cli.js"
     },
     "type": "module",
     "engines": {
@@ -50,8 +50,8 @@
     ],
     "scripts": {
         "build": "bun build ./src/cli.ts --outdir ./dist --target node --minify",
-        "prepublishOnly": "bun run build",
-        "test": "echo \"No tests defined\" && exit 0",
+        "prepublishOnly": "bun run build && bun test",
+        "test": "bun test",
         "dev": "bun run ./src/cli.ts",
         "clean": "rm -rf dist",
         "prepare": "bun run build"
