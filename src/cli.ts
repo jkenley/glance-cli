@@ -31,10 +31,12 @@ import { formatOutput } from "./core/formatter";
 import { takeScreenshot } from "./core/screenshot";
 import { getCacheKey, getCache, setCache, clearCache } from "./core/cache";
 import { detectProvider } from "./core/summarizer";
+import { createVoiceSynthesizer } from "./core/voice";
+import { detectServices, getDefaultModel, showCostWarning, shouldUseFreeOnly } from "./core/service-detector";
 
 // === Configuration ===
 const CONFIG = {
-  VERSION: "0.7.0",
+  VERSION: "0.8.0",
   MAX_CONTENT_SIZE: 10 * 1024 * 1024, // 10MB
   FETCH_TIMEOUT: 30000, // 30s
   RETRY_ATTEMPTS: 3,
@@ -326,7 +328,7 @@ const { values, positionals } = parseArgs({
   options: {
     tldr: { type: "boolean", short: "t" },
     "key-points": { type: "boolean", short: "k" },
-    model: { type: "string", short: "m", default: "gpt-4o-mini" },
+    model: { type: "string", short: "m" }, // No default - will be auto-detected
     language: { type: "string", short: "l", default: "en" },
     "max-tokens": { type: "string" },
     emoji: { type: "boolean", short: "e" },
@@ -348,6 +350,16 @@ const { values, positionals } = parseArgs({
     "dry-run": { type: "boolean", short: "d" },
     help: { type: "boolean", short: "h" },
     version: { type: "boolean", short: "V" },
+    // Voice/TTS options
+    read: { type: "boolean" },
+    speak: { type: "boolean" },
+    voice: { type: "string" },
+    "audio-output": { type: "string" },
+    "list-voices": { type: "boolean" },
+    // Cost control options
+    "free-only": { type: "boolean" },
+    "prefer-quality": { type: "boolean" },
+    "check-services": { type: "boolean" },
   },
 });
 
@@ -368,12 +380,20 @@ ${chalk.bold("Ask:")}
 
 ${chalk.bold("LLM:")}
   -m, --model <name>        Model: gpt-*, gemini-*, or local (e.g. llama3)
-                            Default: gpt-4o-mini
+                            Default: Auto-detected (prefers free/local)
   -l, --language <code>     Language: en, fr, es, ht (default: en)
       --max-tokens <n>      Limit output tokens
+      --free-only           Use only free services (no API costs)
+      --prefer-quality      Prefer paid services for better quality
 
 ${chalk.bold("Style:")}
   -e, --emoji               Add relevant emojis
+
+${chalk.bold("Voice/TTS:")}
+      --read, --speak       Read the summary aloud (text-to-speech)
+      --voice <name/id>     Voice to use (auto-selected by language)
+      --audio-output <file> Save audio to file (.mp3)
+      --list-voices         List available voices (language-organized)
 
 ${chalk.bold("Output:")}
       --markdown            Markdown format
@@ -390,20 +410,24 @@ ${chalk.bold("Advanced:")}
       --metadata            Show page metadata
       --clear-cache         Clear cache and exit
       --list-models         List available Ollama models
+      --check-services      Check which services are available
 
 ${chalk.bold("Debug:")}
   -v, --verbose             Verbose logging (debug level)
   -d, --dry-run             Preview content without AI processing
 
 ${chalk.bold("Examples:")}
-  ${chalk.gray("# Quick summary")}
+  ${chalk.gray("# Quick summary (auto-selects best free model)")}
   glance https://example.com
 
   ${chalk.gray("# Ask a question with streaming")}
   glance https://react.dev -q "What are React Server Components?" --stream
 
-  ${chalk.gray("# TL;DR with local model")}
+  ${chalk.gray("# TL;DR with local model (free)")}
   glance https://long-article.com --model llama3 --tldr
+
+  ${chalk.gray("# Force free-only mode (no API costs)")}
+  glance https://example.com --free-only
 
   ${chalk.gray("# Key points in French with emojis, export to file")}
   glance https://lemonde.fr -k -l fr -e -o summary.md
@@ -411,10 +435,21 @@ ${chalk.bold("Examples:")}
   ${chalk.gray("# Full render for JavaScript-heavy site")}
   glance https://spa-app.com --full-render
 
+  ${chalk.gray("# Read summary aloud (text-to-speech)")}
+  glance https://article.com --tldr --read
+
+  ${chalk.gray("# Save audio summary to file")}
+  glance https://blog.com --key-points --audio-output summary.mp3
+
+  ${chalk.gray("# French content with French voice")}
+  glance https://lemonde.fr --tldr -l fr --read
+
 ${chalk.bold("Environment Variables:")}
-  OPENAI_API_KEY           Required for GPT models
-  GEMINI_API_KEY           Required for Gemini models
+  OPENAI_API_KEY           For GPT models (optional - costs money)
+  GEMINI_API_KEY           For Gemini models (optional - may cost money)
   OLLAMA_ENDPOINT          Ollama server (default: http://localhost:11434)
+  ELEVENLABS_API_KEY       For ElevenLabs voices (optional - costs money)
+  GLANCE_FREE_ONLY         Set to 'true' to always use free services
 
 ${chalk.bold("Learn more:")} https://github.com/jkenley/glance-cli
 `));
@@ -427,6 +462,17 @@ if (values.version) {
   process.exit(0);
 }
 
+// === Check Services ===
+if (values["check-services"]) {
+  console.log(chalk.cyan("\n🔍 Checking available services...\n"));
+  await detectServices({ 
+    verbose: true, 
+    ollamaEndpoint: CONFIG.OLLAMA_ENDPOINT,
+    preferFree: !values["prefer-quality"]
+  });
+  process.exit(0);
+}
+
 // === Clear Cache ===
 if (values["clear-cache"]) {
   try {
@@ -435,6 +481,33 @@ if (values["clear-cache"]) {
   } catch (err: any) {
     logger.error("Failed to clear cache:", err.message);
     process.exit(1);
+  }
+  process.exit(0);
+}
+
+// === List Voices ===
+if (values["list-voices"]) {
+  const spinner = ora(chalk.blue("Fetching available voices...")).start();
+
+  try {
+    const voiceSynthesizer = createVoiceSynthesizer();
+    const voices = await voiceSynthesizer.listVoices();
+    
+    spinner.succeed(chalk.green("Available voices:"));
+    
+    if (voices.length === 0) {
+      console.log(chalk.yellow("\nNo voices available."));
+      console.log(chalk.gray("Set ELEVENLABS_API_KEY for cloud voices"));
+      console.log(chalk.gray("Or use system TTS (macOS 'say', Windows SAPI, Linux espeak)"));
+    } else {
+      console.log();
+      voices.forEach((voice) => {
+        console.log(`  ${chalk.green("•")} ${voice}`);
+      });
+    }
+  } catch (err: any) {
+    spinner.fail(chalk.red("Failed to list voices"));
+    console.log(chalk.yellow(`\n${err.message}`));
   }
   process.exit(0);
 }
@@ -524,17 +597,46 @@ if (values["list-models"]) {
   }
   const maxTokens = tokensValidation.parsed;
 
+  // Auto-detect best available model if not specified
+  let modelToUse = values.model as string | undefined;
+  if (!modelToUse) {
+    modelToUse = await getDefaultModel(CONFIG.OLLAMA_ENDPOINT);
+    if (values.verbose) {
+      console.log(chalk.dim(`Auto-selected model: ${modelToUse}`));
+    }
+  }
+
+  // Check if free-only mode is enabled
+  const freeOnly = values["free-only"] || shouldUseFreeOnly();
+  if (freeOnly && values.verbose) {
+    console.log(chalk.cyan("🆓 Free-only mode enabled"));
+  }
+
   // Detect provider and validate
   let provider: "openai" | "google" | "ollama";
   let providerName: string;
 
   try {
-    const p = detectProvider(values.model!);
+    const p = detectProvider(modelToUse);
     provider = p;
     providerName = p === "openai" ? "OpenAI" : p === "google" ? "Google Gemini" : "Ollama (local)";
     logger.debug(`Detected provider: ${providerName}`);
+    
+    // Block paid services in free-only mode
+    if (freeOnly && (provider === "openai" || provider === "google")) {
+      console.error(chalk.red(`\n❌ Cannot use ${providerName} in free-only mode`));
+      console.log(chalk.yellow("💡 Install Ollama for free local AI: https://ollama.com"));
+      console.log(chalk.gray("   Then run: ollama pull llama3"));
+      console.log(chalk.gray("\n   Or disable free-only mode with --prefer-quality"));
+      process.exit(1);
+    }
+    
+    // Show cost warning for paid services
+    if (!freeOnly && (provider === "openai" || provider === "google")) {
+      showCostWarning(provider, modelToUse);
+    }
   } catch (err: any) {
-    console.error(chalk.red(`❌ Invalid model: ${values.model}`));
+    console.error(chalk.red(`❌ Invalid model: ${modelToUse}`));
     console.error(chalk.yellow(err.message));
     process.exit(1);
   }
@@ -545,6 +647,14 @@ if (values["list-models"]) {
     console.error(chalk.red(`❌ ${apiValidation.error}\n`));
     if (apiValidation.hint) {
       console.log(chalk.yellow("💡 " + apiValidation.hint));
+    }
+    
+    // Suggest alternatives
+    if (provider === "openai" || provider === "google") {
+      console.log(chalk.cyan("\n🆓 Try free local AI instead:"));
+      console.log(chalk.gray("   1. Install Ollama: https://ollama.com"));
+      console.log(chalk.gray("   2. Run: ollama pull llama3"));
+      console.log(chalk.gray("   3. Use: glance <url> --model llama3"));
     }
     process.exit(1);
   }
@@ -687,7 +797,7 @@ if (values["list-models"]) {
         result = await withRetry(
           () =>
             summarize(cleanText, {
-              model: values.model!,
+              model: modelToUse,
               tldr: values.tldr,
               keyPoints: values["key-points"],
               eli5: values.eli5,
@@ -795,6 +905,40 @@ if (values["list-models"]) {
 
     // === Display Output ===
     console.log("\n" + output);
+
+    // === Voice/TTS Output ===
+    if (values.read || values.speak || values["audio-output"]) {
+      const voiceSpinner = ora(chalk.blue("Generating audio...")).start();
+      
+      try {
+        const voiceSynthesizer = createVoiceSynthesizer();
+        
+        // Use the raw result text, not the formatted output
+        const textToSpeak = result;
+        
+        const voiceResult = await voiceSynthesizer.synthesize(textToSpeak, {
+          voice: values.voice as string | undefined,
+          outputFile: values["audio-output"] as string | undefined,
+          apiKey: process.env.ELEVENLABS_API_KEY,
+          language: values.language!, // Pass language for intelligent voice selection
+        });
+        
+        if (voiceResult.success) {
+          if (values["audio-output"]) {
+            voiceSpinner.succeed(chalk.green(`Audio saved → ${values["audio-output"]}`));
+          } else {
+            voiceSpinner.succeed(chalk.green("Playing audio..."));
+          }
+        } else {
+          voiceSpinner.warn(chalk.yellow(`Voice synthesis failed: ${voiceResult.error}`));
+        }
+      } catch (err: any) {
+        voiceSpinner.warn(chalk.yellow(`Voice error: ${err.message}`));
+        if (values.verbose) {
+          console.error(chalk.dim("Voice error details:"), err);
+        }
+      }
+    }
 
     // === Performance Summary ===
     if (values.verbose) {
