@@ -19,6 +19,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
 import * as compat from './compat';
+import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts } from "./text-cleaner";
 
 // === Configuration ===
 const CACHE_CONFIG = {
@@ -319,7 +320,18 @@ export async function getCache(key: string): Promise<string | null> {
 
     // Convert to string
     const decoder = new TextDecoder();
-    return decoder.decode(content);
+    let decodedContent = decoder.decode(content);
+    
+    // NUCLEAR CLEANING: Apply aggressive sanitization to cached content
+    if (hasBinaryArtifacts(decodedContent)) {
+      console.error("🚨 CRITICAL: Binary artifacts in cached content! Applying emergency cleaning...");
+      decodedContent = nuclearCleanText(sanitizeAIResponse(decodedContent));
+    } else {
+      // Still apply basic cleaning to cached content
+      decodedContent = nuclearCleanText(decodedContent);
+    }
+    
+    return decodedContent;
 
   } catch (err: any) {
     console.warn("Cache get error:", err.message);
@@ -352,6 +364,15 @@ export async function setCache(
 
     if (typeof value !== "string") {
       throw new Error("Cache value must be a string");
+    }
+
+    // NUCLEAR CLEANING: Clean value before storing in cache
+    if (hasBinaryArtifacts(value)) {
+      console.error("🚨 CRITICAL: Binary artifacts in value being cached! Applying emergency cleaning...");
+      value = nuclearCleanText(sanitizeAIResponse(value));
+    } else {
+      // Still apply basic cleaning to cached content
+      value = nuclearCleanText(value);
     }
 
     // Check entry size
