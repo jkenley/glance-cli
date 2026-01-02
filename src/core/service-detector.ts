@@ -310,8 +310,12 @@ export async function detectServices(
 /**
  * Get the default model based on available services
  */
-export async function getDefaultModel(ollamaEndpoint?: string): Promise<string> {
-  const detection = await detectServices({ ollamaEndpoint, verbose: false });
+export async function getDefaultModel(ollamaEndpoint?: string, preferQuality?: boolean): Promise<string> {
+  const detection = await detectServices({ 
+    ollamaEndpoint, 
+    verbose: false, 
+    preferFree: !preferQuality 
+  });
   
   switch (detection.ai.preferred) {
     case 'ollama':
