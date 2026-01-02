@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * glance v0.7.0 – Production-Ready AI Web Reader CLI
  * 
@@ -20,6 +22,7 @@
  */
 
 import { parseArgs } from "node:util";
+import * as compat from './core/compat';
 import chalk from "chalk";
 import ora from "ora";
 import path from "node:path";
@@ -322,7 +325,7 @@ class PerformanceTracker {
  * @returns The parsed arguments
  */
 const { values, positionals } = parseArgs({
-  args: Bun.argv.slice(2),
+  args: compat.argv.slice(2),
   strict: true,
   allowPositionals: true,
   options: {
@@ -889,7 +892,7 @@ if (values["list-models"]) {
       }
 
       try {
-        await Bun.write(values.export, content);
+        await compat.writeFile(values.export, content);
         const absolutePath = path.resolve(values.export);
         logger.success(`Saved → ${absolutePath}`);
       } catch (err: any) {

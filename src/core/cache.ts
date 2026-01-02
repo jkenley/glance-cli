@@ -18,10 +18,11 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
+import * as compat from './compat';
 
 // === Configuration ===
 const CACHE_CONFIG = {
-  DIR: path.join(Bun.env.HOME || process.cwd(), ".glance", "cache"),
+  DIR: path.join(compat.env.HOME || process.cwd(), ".glance", "cache"),
   DEFAULT_TTL: 24 * 60 * 60 * 1000,     // 24 hours in ms
   MAX_ENTRY_SIZE: 10 * 1024 * 1024,     // 10MB per entry
   MAX_CACHE_SIZE: 100 * 1024 * 1024,    // 100MB total
@@ -82,7 +83,7 @@ let stats: CacheStats | null = null;
 async function initCache(): Promise<void> {
   try {
     // Create cache directory
-    await Bun.$`mkdir -p ${CACHE_CONFIG.DIR}`.quiet();
+    await compat.mkdirp(CACHE_CONFIG.DIR);
 
     // Load metadata
     metadata = await loadMetadata();
@@ -103,14 +104,14 @@ async function initCache(): Promise<void> {
  */
 async function loadMetadata(): Promise<CacheMetadata> {
   const metaPath = path.join(CACHE_CONFIG.DIR, CACHE_CONFIG.METADATA_FILE);
-  const file = Bun.file(metaPath);
 
-  if (!await file.exists()) {
+  if (!await compat.fileExists(metaPath)) {
     return { entries: new Map(), lastCleanup: Date.now() };
   }
 
   try {
-    const data = await file.json();
+    const content = await compat.readFile(metaPath);
+    const data = JSON.parse(content);
     return {
       entries: new Map(Object.entries(data.entries || {})),
       lastCleanup: data.lastCleanup || Date.now(),
@@ -134,7 +135,7 @@ async function saveMetadata(): Promise<void> {
       lastCleanup: metadata.lastCleanup,
     };
 
-    await Bun.write(metaPath, JSON.stringify(data, null, 2));
+    await compat.writeFile(metaPath, JSON.stringify(data, null, 2));
   } catch (err: any) {
     console.warn("Failed to save cache metadata:", err.message);
   }
@@ -145,14 +146,14 @@ async function saveMetadata(): Promise<void> {
  */
 async function loadStats(): Promise<CacheStats> {
   const statsPath = path.join(CACHE_CONFIG.DIR, CACHE_CONFIG.STATS_FILE);
-  const file = Bun.file(statsPath);
 
-  if (!await file.exists()) {
+  if (!await compat.fileExists(statsPath)) {
     return createEmptyStats();
   }
 
   try {
-    return await file.json();
+    const content = await compat.readFile(statsPath);
+    return JSON.parse(content);
   } catch {
     return createEmptyStats();
   }
@@ -167,7 +168,7 @@ async function saveStats(): Promise<void> {
   const statsPath = path.join(CACHE_CONFIG.DIR, CACHE_CONFIG.STATS_FILE);
 
   try {
-    await Bun.write(statsPath, JSON.stringify(stats, null, 2));
+    await compat.writeFile(statsPath, JSON.stringify(stats, null, 2));
   } catch (err: any) {
     console.warn("Failed to save cache stats:", err.message);
   }
@@ -280,9 +281,8 @@ export async function getCache(key: string): Promise<string | null> {
 
     // Read file
     const filePath = path.join(CACHE_CONFIG.DIR, `${key}.cache`);
-    const file = Bun.file(filePath);
 
-    if (!await file.exists()) {
+    if (!await compat.fileExists(filePath)) {
       // File missing - clean up metadata
       metadata!.entries.delete(key);
       await saveMetadata();
@@ -292,7 +292,7 @@ export async function getCache(key: string): Promise<string | null> {
     }
 
     // Read content
-    let content = await file.arrayBuffer();
+    let content = await compat.readFileBuffer(filePath);
 
     // Decompress if needed
     if (meta.compressed) {
@@ -391,10 +391,10 @@ export async function setCache(
     const filePath = path.join(CACHE_CONFIG.DIR, `${key}.cache`);
     const tempPath = `${filePath}.tmp`;
 
-    await Bun.write(tempPath, content);
+    await compat.writeFile(tempPath, content);
 
     // Rename to final location (atomic)
-    await Bun.$`mv ${tempPath} ${filePath}`.quiet();
+    await compat.mv(tempPath, filePath);
 
     // Create metadata
     const now = Date.now();
@@ -455,7 +455,7 @@ export async function deleteCache(key: string): Promise<void> {
       // Delete file
       const filePath = path.join(CACHE_CONFIG.DIR, `${key}.cache`);
       try {
-        await Bun.$`rm -f ${filePath}`.quiet();
+        await compat.rm(filePath);
       } catch {
         // Ignore if file doesn't exist
       }
@@ -480,10 +480,10 @@ export async function deleteCache(key: string): Promise<void> {
 export async function clearCache(): Promise<void> {
   try {
     // Remove all cache files
-    await Bun.$`rm -rf ${CACHE_CONFIG.DIR}/*`.quiet();
+    await compat.rmrf(CACHE_CONFIG.DIR);
 
     // Recreate directory
-    await Bun.$`mkdir -p ${CACHE_CONFIG.DIR}`.quiet();
+    await compat.mkdirp(CACHE_CONFIG.DIR);
 
     // Reset metadata and stats
     metadata = { entries: new Map(), lastCleanup: Date.now() };
