@@ -102,19 +102,39 @@ function sanitizeURL(url: string): string {
 }
 
 /**
- * Sanitize text for safe output
+ * Sanitize text for safe output with comprehensive encoding cleanup
  */
 function sanitizeText(text: string, maxLength?: number): string {
     if (!text) return "";
 
     let sanitized = text.trim();
 
-    // Remove all control characters and non-printable characters except newlines and tabs
-    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "");
-    // Remove any remaining binary/invalid UTF-8 sequences
+    // Remove null bytes and control characters that can cause terminal issues
+    sanitized = sanitized.replace(/\x00/g, '');
+    // Remove DEL character and other problematic control characters
+    sanitized = sanitized.replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "");
+    // Remove Unicode replacement characters that indicate encoding problems
     sanitized = sanitized.replace(/[\uFFFD\uFEFF]/g, "");
     // Remove zero-width characters that can cause display issues
     sanitized = sanitized.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
+    // Fix common Windows-1252 to UTF-8 encoding artifacts
+    sanitized = sanitized.replace(/â€™/g, "'")    // Smart apostrophe
+        .replace(/â€œ/g, '"')    // Smart quote open
+        .replace(/â€\x9D/g, '"')    // Smart quote close  
+        .replace(/â€"/g, '—')    // Em dash
+        .replace(/â€\x93/g, '–')    // En dash
+        .replace(/Â /g, ' ')     // Non-breaking space issues
+        .replace(/â¢/g, '•')     // Bullet point
+        .replace(/Ã©/g, 'é')     // e with acute
+        .replace(/Ã¡/g, 'á')     // a with acute
+        .replace(/Ã­/g, 'í')     // i with acute  
+        .replace(/Ã³/g, 'ó')     // o with acute
+        .replace(/Ãº/g, 'ú')     // u with acute
+        .replace(/Ã±/g, 'ñ')     // n with tilde
+        .replace(/Ã\x87/g, 'Ç');     // C with cedilla
+    
+    // Remove remaining suspicious high-bit sequences that look like artifacts
+    sanitized = sanitized.replace(/[^\x00-\x7F\u00A0-\uFFFF]/g, '');
 
     // Truncate if needed
     if (maxLength && sanitized.length > maxLength) {

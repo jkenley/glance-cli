@@ -247,17 +247,36 @@ function findBestContent($: CheerioAPI): Cheerio<Element> | null {
 // === Text Cleaning ===
 
 /**
- * Clean and normalize text
+ * Clean and normalize text with comprehensive encoding artifact removal
  */
 function cleanText(text: string): string {
     return text
-        // Remove all control characters and non-printable characters except newlines and tabs
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
-        // Remove any remaining binary/invalid UTF-8 sequences
+        // Remove null bytes and control characters that can cause terminal issues
+        .replace(/\x00/g, '')
+        // Remove DEL character and other problematic control characters
+        .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
+        // Remove Unicode replacement characters that indicate encoding problems
         .replace(/[\uFFFD\uFEFF]/g, "")
         // Remove zero-width characters that can cause display issues
         .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
-        // Normalize whitespace
+        // Fix common Windows-1252 to UTF-8 encoding artifacts
+        .replace(/â€™/g, "'")    // Smart apostrophe
+        .replace(/â€œ/g, '"')    // Smart quote open
+        .replace(/â€\x9D/g, '"')    // Smart quote close  
+        .replace(/â€"/g, '—')    // Em dash
+        .replace(/â€\x93/g, '–')    // En dash
+        .replace(/Â /g, ' ')     // Non-breaking space issues
+        .replace(/â¢/g, '•')     // Bullet point
+        .replace(/Ã©/g, 'é')     // e with acute
+        .replace(/Ã¡/g, 'á')     // a with acute
+        .replace(/Ã­/g, 'í')     // i with acute  
+        .replace(/Ã³/g, 'ó')     // o with acute
+        .replace(/Ãº/g, 'ú')     // u with acute
+        .replace(/Ã±/g, 'ñ')     // n with tilde
+        .replace(/Ã\x87/g, 'Ç')     // C with cedilla
+        // Remove remaining suspicious high-bit sequences that look like artifacts
+        .replace(/[^\x00-\x7F\u00A0-\uFFFF]/g, '')
+        // Normalize whitespace (after encoding fixes)
         .replace(/\s+/g, " ")
         // Convert multiple newlines to double newline
         .replace(/\n\s*\n\s*\n+/g, "\n\n")
