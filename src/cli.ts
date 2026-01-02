@@ -39,7 +39,7 @@ import { detectServices, getDefaultModel, showCostWarning, shouldUseFreeOnly } f
 
 // === Configuration ===
 const CONFIG = {
-  VERSION: "0.8.0",
+  VERSION: "0.8.3",
   MAX_CONTENT_SIZE: 10 * 1024 * 1024, // 10MB
   FETCH_TIMEOUT: 30000, // 30s
   RETRY_ATTEMPTS: 3,
