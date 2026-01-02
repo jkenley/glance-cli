@@ -298,7 +298,7 @@ export async function getCache(key: string): Promise<string | null> {
     // Decompress if needed
     if (meta.compressed) {
       try {
-        content = gunzipSync(new Uint8Array(content)).buffer;
+        content = Buffer.from(gunzipSync(new Uint8Array(content)).buffer);
       } catch (err: any) {
         console.warn("Decompression failed for key:", key);
         await deleteCache(key);

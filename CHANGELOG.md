@@ -5,6 +5,27 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-01-02
+
+### Fixed
+- **Voice System Improvements**: Fixed voice listing to show only working voices with proper language mapping
+- **Text Cleaner Optimization**: Made text cleaning less aggressive to prevent legitimate content removal
+- **Cache System**: Resolved overly aggressive cleaning of cache-related terms and content
+- **--prefer-quality Flag**: Fixed issue where flag wasn't affecting automatic model selection
+- **Voice Validation**: Improved voice name/ID validation and error messages
+
+### Improved
+- **Voice Listing**: Clean, organized display by language (🇺🇸 English, 🇫🇷 French, 🇪🇸 Spanish, 🇭🇹 Haitian Creole)
+- **Error Messages**: More specific and helpful voice synthesis error messages
+- **Text Processing**: Smarter cleaning that preserves paragraph structure and legitimate content
+- **Model Selection**: --prefer-quality now correctly prioritizes OpenAI/Gemini over Ollama
+
+### Technical Details
+- Enhanced voice mapping system to show only available voices in user's ElevenLabs account
+- Refined binary artifact detection to avoid false positives from ANSI color codes
+- Improved cache system stability with better error handling
+- More conservative text cleaning patterns to preserve legitimate content
+
 ## [0.8.7] - 2026-01-02
 
 ### Fixed
