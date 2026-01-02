@@ -13,6 +13,7 @@
  */
 
 import chalk from "chalk";
+import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts } from "./text-cleaner";
 
 // === Types ===
 
@@ -560,8 +561,18 @@ export function formatOutput(summary: string, options: FormatOptions): string {
         throw new Error("URL is required in options");
     }
 
-    // Sanitize inputs
-    const cleanSummary = summary.trim();
+    // NUCLEAR CLEANING: Apply aggressive sanitization to summary
+    let cleanSummary = summary.trim();
+    
+    // Check if summary has binary artifacts and clean aggressively if needed
+    if (hasBinaryArtifacts(cleanSummary)) {
+        console.error("⚠️ Binary artifacts detected in summary, applying nuclear cleaning...");
+        cleanSummary = nuclearCleanText(cleanSummary);
+        cleanSummary = sanitizeAIResponse(cleanSummary);
+    } else {
+        // Still apply basic cleaning
+        cleanSummary = nuclearCleanText(cleanSummary);
+    }
     const cleanURL = sanitizeURL(options.url);
     const cleanMetadata = sanitizeMetadata(options.metadata);
 

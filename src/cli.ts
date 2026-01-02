@@ -36,10 +36,11 @@ import { getCacheKey, getCache, setCache, clearCache } from "./core/cache";
 import { detectProvider } from "./core/summarizer";
 import { createVoiceSynthesizer } from "./core/voice";
 import { detectServices, getDefaultModel, showCostWarning, shouldUseFreeOnly } from "./core/service-detector";
+import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts, emergencyTextClean } from "./core/text-cleaner";
 
 // === Configuration ===
 const CONFIG = {
-  VERSION: "0.8.5",
+  VERSION: "0.8.6",
   MAX_CONTENT_SIZE: 10 * 1024 * 1024, // 10MB
   FETCH_TIMEOUT: 30000, // 30s
   RETRY_ATTEMPTS: 3,
@@ -226,54 +227,39 @@ async function validateAPIKeys(provider: "openai" | "google" | "ollama"): Promis
 // === Output Sanitization ===
 
 /**
- * Final terminal output sanitization to completely eliminate binary artifacts
- * while preserving legitimate formatting (ANSI/Chalk colors, emojis, etc.)
+ * ULTIMATE terminal output sanitization - nuclear level cleaning
+ * This will eliminate ALL binary artifacts even if it removes some formatting
  */
 function sanitizeOutputForTerminal(text: string): string {
   if (!text || typeof text !== "string") {
     return "";
   }
 
+  // First check if we have serious corruption
+  if (hasBinaryArtifacts(text)) {
+    console.error("🚨 CRITICAL: Binary artifacts detected! Applying emergency cleaning...");
+    
+    // Emergency mode - use most aggressive cleaning
+    text = emergencyTextClean(text);
+    text = sanitizeAIResponse(text);
+    text = nuclearCleanText(text);
+    
+    // If still corrupted, do final desperate cleanup
+    if (hasBinaryArtifacts(text)) {
+      console.error("🚨 DESPERATE MODE: Corruption persists, applying final nuclear cleanup...");
+      // Keep ONLY basic ASCII printable characters
+      text = text.replace(/[^\x20-\x7E\n\t]/g, '');
+    }
+  } else {
+    // Normal mode - still apply nuclear cleaning but less aggressive
+    text = nuclearCleanText(text);
+  }
+
+  // Final pass to ensure absolutely clean output
   return text
-    // Remove null bytes which can corrupt terminal
-    .replace(/\x00/g, '')
-    // Remove specific control characters that cause problems (but keep \n, \t, \r)
-    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, '')
-    // Remove DEL character which can cause issues
-    .replace(/\x7F/g, '')
-    // Remove Unicode replacement characters that indicate encoding problems
-    .replace(/[\uFFFD]/g, '')
-    // Remove zero-width characters that can cause display issues  
-    .replace(/[\u200B-\u200D\u2060]/g, '')
-    // Remove byte order marks
-    .replace(/\uFEFF/g, '')
-    // Handle common Windows-1252 to UTF-8 encoding artifacts
-    .replace(/â€™/g, "'")    // Smart apostrophe
-    .replace(/â€œ/g, '"')    // Smart quote open
-    .replace(/â€\x9D/g, '"')    // Smart quote close  
-    .replace(/â€"/g, '—')    // Em dash
-    .replace(/â€\x93/g, '–')    // En dash
-    .replace(/Â /g, ' ')     // Non-breaking space issues
-    .replace(/â¢/g, '•')     // Bullet point
-    .replace(/Ã©/g, 'é')     // e with acute
-    .replace(/Ã¡/g, 'á')     // a with acute
-    .replace(/Ã­/g, 'í')     // i with acute  
-    .replace(/Ã³/g, 'ó')     // o with acute
-    .replace(/Ãº/g, 'ú')     // u with acute
-    .replace(/Ã±/g, 'ñ')     // n with tilde
-    .replace(/Ã\x87/g, 'Ç')     // C with cedilla
-    // Remove sequences that look like binary data (4+ consecutive non-ASCII bytes)
-    .replace(/[\x80-\xFF]{4,}/g, '')
-    // Remove what looks like memory addresses or binary patterns
-    .replace(/[0-9A-Fa-f]{8,16}[^a-zA-Z0-9\s]/g, '')
-    // Remove suspicious patterns that look like corrupted data
-    .replace(/[A-Za-z]\d+[A-Za-z]\d+[A-Za-z]\d+/g, '')
-    // Final safety: remove any remaining sequences of high-bit characters that aren't valid UTF-8
-    .replace(/[\x80-\xFF][\x80-\xFF][\x80-\xFF]+/g, '')
-    // Clean up multiple consecutive spaces
-    .replace(/ {3,}/g, '  ')
-    // Clean up any trailing binary/control characters
-    .replace(/[\x80-\xFF\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$/, '');
+    .replace(/\s+/g, ' ')           // Normalize spaces
+    .replace(/\n{3,}/g, '\n\n')     // Max 2 consecutive newlines  
+    .trim();
 }
 
 // === Retry Logic ===

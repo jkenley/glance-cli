@@ -15,6 +15,7 @@
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import chalk from "chalk";
+import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts } from "./text-cleaner";
 
 const LANGUAGE_MAP: Record<string, string> = {
     en: "English",
@@ -345,7 +346,14 @@ async function openaiSummarize(prompt: string, options: SummarizeOptions): Promi
         top_p: 0.95, // Slightly reduce randomness for consistency
     });
 
-    return res.choices[0]?.message?.content?.trim() ?? "";
+    const rawContent = res.choices[0]?.message?.content?.trim() ?? "";
+    
+    // NUCLEAR CLEANING: Apply aggressive sanitization to AI response
+    if (hasBinaryArtifacts(rawContent)) {
+        console.error("🚨 CRITICAL: Binary artifacts in OpenAI response! Applying emergency cleaning...");
+    }
+    
+    return nuclearCleanText(sanitizeAIResponse(rawContent));
 }
 
 /**
@@ -370,7 +378,14 @@ async function geminiSummarize(prompt: string, options: SummarizeOptions): Promi
         },
     });
 
-    const text = response.text?.trim() ?? "";
+    const rawText = response.text?.trim() ?? "";
+    
+    // NUCLEAR CLEANING: Apply aggressive sanitization to Gemini response
+    if (hasBinaryArtifacts(rawText)) {
+        console.error("🚨 CRITICAL: Binary artifacts in Gemini response! Applying emergency cleaning...");
+    }
+    
+    const text = nuclearCleanText(sanitizeAIResponse(rawText));
 
     if (options.stream) {
         for (const char of text) {
@@ -444,7 +459,14 @@ async function ollamaSummarize(prompt: string, options: SummarizeOptions): Promi
     }
 
     const data = await res.json();
-    return (data as any).message?.content?.trim() ?? "";
+    const rawContent = (data as any).message?.content?.trim() ?? "";
+    
+    // NUCLEAR CLEANING: Apply aggressive sanitization to Ollama response
+    if (hasBinaryArtifacts(rawContent)) {
+        console.error("🚨 CRITICAL: Binary artifacts in Ollama response! Applying emergency cleaning...");
+    }
+    
+    return nuclearCleanText(sanitizeAIResponse(rawContent));
 }
 
 /**

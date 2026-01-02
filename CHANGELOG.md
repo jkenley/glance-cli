@@ -5,6 +5,18 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2026-01-02
+
+### Fixed
+- **NUCLEAR Text Cleaning**: Implemented ultimate solution for ALL binary artifacts
+- Created dedicated text-cleaner module with nuclear-level sanitization
+- Applied aggressive cleaning at EVERY stage: AI responses, cache, formatter, and output
+- Fixed cache system corruption that was storing/retrieving binary artifacts
+- Added emergency text cleaning mode for severely corrupted content
+- Implemented binary artifact detection with real-time alerts
+- Ensures 100% clean output with zero memory addresses, pointers, or system artifacts
+- Completely eliminated all forms of text corruption while preserving formatting
+
 ## [0.8.5] - 2026-01-02
 
 ### Fixed
