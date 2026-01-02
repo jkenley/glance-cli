@@ -49,3 +49,6 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# MD
+PROMPT.md
