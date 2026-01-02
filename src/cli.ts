@@ -328,7 +328,7 @@ const { values, positionals } = parseArgs({
   options: {
     tldr: { type: "boolean", short: "t" },
     "key-points": { type: "boolean", short: "k" },
-    model: { type: "string", short: "m" }, // No default - will be auto-detected
+    model: { type: "string", short: "m" },
     language: { type: "string", short: "l", default: "en" },
     "max-tokens": { type: "string" },
     emoji: { type: "boolean", short: "e" },
