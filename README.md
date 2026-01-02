@@ -18,7 +18,10 @@ Turn any webpage into terminal-friendly insights — no browser needed.
 ## ⚡ Quick Start
 
 ```bash
-# Install
+# Install with Bun (preferred - faster!)
+bun install -g glance-cli
+
+# Or with npm
 npm install -g glance-cli
 
 # Use immediately (works without setup!)
