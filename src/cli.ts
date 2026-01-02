@@ -40,7 +40,7 @@ import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts, emergencyText
 
 // === Configuration ===
 const CONFIG = {
-  VERSION: "0.8.6",
+  VERSION: "0.8.7",
   MAX_CONTENT_SIZE: 10 * 1024 * 1024, // 10MB
   FETCH_TIMEOUT: 30000, // 30s
   RETRY_ATTEMPTS: 3,
@@ -227,38 +227,46 @@ async function validateAPIKeys(provider: "openai" | "google" | "ollama"): Promis
 // === Output Sanitization ===
 
 /**
- * ULTIMATE terminal output sanitization - nuclear level cleaning
- * This will eliminate ALL binary artifacts even if it removes some formatting
+ * Smart terminal output sanitization - preserves formatting while removing artifacts
  */
 function sanitizeOutputForTerminal(text: string): string {
   if (!text || typeof text !== "string") {
     return "";
   }
 
-  // First check if we have serious corruption
-  if (hasBinaryArtifacts(text)) {
+  // Check for binary artifacts but ignore ANSI escape sequences (which are legitimate formatting)
+  const textWithoutAnsi = text.replace(/\x1b\[[0-9;]*m/g, ''); // Remove ANSI color codes for testing
+  
+  if (hasBinaryArtifacts(textWithoutAnsi)) {
     console.error("🚨 CRITICAL: Binary artifacts detected! Applying emergency cleaning...");
     
-    // Emergency mode - use most aggressive cleaning
-    text = emergencyTextClean(text);
-    text = sanitizeAIResponse(text);
-    text = nuclearCleanText(text);
+    // Emergency mode - use nuclear cleaning but preserve ANSI codes
+    const ansiCodes = text.match(/\x1b\[[0-9;]*m/g) || [];
+    text = nuclearCleanText(textWithoutAnsi);
     
     // If still corrupted, do final desperate cleanup
     if (hasBinaryArtifacts(text)) {
       console.error("🚨 DESPERATE MODE: Corruption persists, applying final nuclear cleanup...");
-      // Keep ONLY basic ASCII printable characters
-      text = text.replace(/[^\x20-\x7E\n\t]/g, '');
+      text = emergencyTextClean(text);
     }
+    
+    // Note: We don't restore ANSI codes after nuclear cleaning as the output may be corrupted
   } else {
-    // Normal mode - still apply nuclear cleaning but less aggressive
-    text = nuclearCleanText(text);
+    // Normal mode - minimal cleaning to preserve formatting
+    text = text
+      // Remove dangerous artifacts but preserve newlines and ANSI codes
+      .replace(/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi, '')
+      .replace(/\b0x[0-9A-Fa-f]+/g, '')
+      // Clean up extra spaces within lines but preserve paragraph structure
+      .replace(/ {2,}/g, ' ')  // Multiple spaces become single space
+      .replace(/\t/g, ' ')     // Tabs become spaces
+      .trim();
   }
 
-  // Final pass to ensure absolutely clean output
+  // Final pass to ensure clean output while preserving structure
   return text
-    .replace(/\s+/g, ' ')           // Normalize spaces
-    .replace(/\n{3,}/g, '\n\n')     // Max 2 consecutive newlines  
+    .replace(/ {2,}/g, ' ')          // Only normalize multiple spaces within lines
+    .replace(/\n{3,}/g, '\n\n')     // Max 2 consecutive newlines
     .trim();
 }
 

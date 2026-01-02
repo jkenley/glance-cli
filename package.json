@@ -1,6 +1,6 @@
 {
     "name": "glance-cli",
-    "version": "0.8.6",
+    "version": "0.8.7",
     "description": "AI-powered web reader for your terminal – Fetch, extract, and summarize webpages with local or cloud AI",
     "keywords": [
         "cli",
