@@ -348,12 +348,19 @@ async function openaiSummarize(prompt: string, options: SummarizeOptions): Promi
 
     const rawContent = res.choices[0]?.message?.content?.trim() ?? "";
     
-    // NUCLEAR CLEANING: Apply aggressive sanitization to AI response
+    // Smart cleaning: Only apply nuclear cleaning if actual artifacts detected
     if (hasBinaryArtifacts(rawContent)) {
         console.error("🚨 CRITICAL: Binary artifacts in OpenAI response! Applying emergency cleaning...");
+        return nuclearCleanText(rawContent);
     }
     
-    return nuclearCleanText(sanitizeAIResponse(rawContent));
+    // For clean responses, only do minimal cleaning to preserve paragraph structure
+    return rawContent
+        .replace(/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi, '')
+        .replace(/\b0x[0-9A-Fa-f]+/g, '')
+        .replace(/ {2,}/g, ' ')  // Multiple spaces become single space
+        .replace(/\t/g, ' ')     // Tabs become spaces
+        .trim();
 }
 
 /**
@@ -380,12 +387,20 @@ async function geminiSummarize(prompt: string, options: SummarizeOptions): Promi
 
     const rawText = response.text?.trim() ?? "";
     
-    // NUCLEAR CLEANING: Apply aggressive sanitization to Gemini response
+    // Smart cleaning: Only apply nuclear cleaning if actual artifacts detected
+    let text = rawText;
     if (hasBinaryArtifacts(rawText)) {
         console.error("🚨 CRITICAL: Binary artifacts in Gemini response! Applying emergency cleaning...");
+        text = nuclearCleanText(rawText);
+    } else {
+        // For clean responses, only do minimal cleaning to preserve paragraph structure
+        text = rawText
+            .replace(/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi, '')
+            .replace(/\b0x[0-9A-Fa-f]+/g, '')
+            .replace(/ {2,}/g, ' ')  // Multiple spaces become single space
+            .replace(/\t/g, ' ')     // Tabs become spaces
+            .trim();
     }
-    
-    const text = nuclearCleanText(sanitizeAIResponse(rawText));
 
     if (options.stream) {
         for (const char of text) {
@@ -461,12 +476,19 @@ async function ollamaSummarize(prompt: string, options: SummarizeOptions): Promi
     const data = await res.json();
     const rawContent = (data as any).message?.content?.trim() ?? "";
     
-    // NUCLEAR CLEANING: Apply aggressive sanitization to Ollama response
+    // Smart cleaning: Only apply nuclear cleaning if actual artifacts detected
     if (hasBinaryArtifacts(rawContent)) {
         console.error("🚨 CRITICAL: Binary artifacts in Ollama response! Applying emergency cleaning...");
+        return nuclearCleanText(rawContent);
     }
     
-    return nuclearCleanText(sanitizeAIResponse(rawContent));
+    // For clean responses, only do minimal cleaning to preserve paragraph structure
+    return rawContent
+        .replace(/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi, '')
+        .replace(/\b0x[0-9A-Fa-f]+/g, '')
+        .replace(/ {2,}/g, ' ')  // Multiple spaces become single space
+        .replace(/\t/g, ' ')     // Tabs become spaces
+        .trim();
 }
 
 /**

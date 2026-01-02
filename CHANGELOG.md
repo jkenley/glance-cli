@@ -5,6 +5,22 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-01-02
+
+### Fixed
+- **Smart Text Cleaning**: Resolved aggressive text cleaning that was destroying paragraph structure
+- **Paragraph Formatting**: Restored beautiful paragraph breaks and section formatting from v0.8.3
+- **Binary Artifact Detection**: Fixed false positives from ANSI color codes in formatted output
+- **AI Response Processing**: Preserves natural paragraph structure in AI-generated summaries
+- **Terminal Output**: Smart sanitization that only applies nuclear cleaning when actual artifacts detected
+- Perfect balance: Maintains v0.8.6 security features while restoring v0.8.3 formatting beauty
+
+### Technical Details
+- Modified `sanitizeOutputForTerminal()` to ignore ANSI escape sequences in artifact detection
+- Updated summarizer functions to preserve paragraph structure in clean AI responses
+- Implemented conditional cleaning: nuclear mode only for actual binary artifacts
+- Smart cleaning preserves newlines, sections, and natural content flow
+
 ## [0.8.6] - 2026-01-02
 
 ### Fixed

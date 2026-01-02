@@ -561,17 +561,24 @@ export function formatOutput(summary: string, options: FormatOptions): string {
         throw new Error("URL is required in options");
     }
 
-    // NUCLEAR CLEANING: Apply aggressive sanitization to summary
+    // Smart cleaning: Preserve formatting while removing artifacts  
     let cleanSummary = summary.trim();
     
-    // Check if summary has binary artifacts and clean aggressively if needed
+    // Only apply nuclear cleaning if we detect actual binary artifacts
     if (hasBinaryArtifacts(cleanSummary)) {
         console.error("⚠️ Binary artifacts detected in summary, applying nuclear cleaning...");
         cleanSummary = nuclearCleanText(cleanSummary);
-        cleanSummary = sanitizeAIResponse(cleanSummary);
     } else {
-        // Still apply basic cleaning
-        cleanSummary = nuclearCleanText(cleanSummary);
+        // For clean text, preserve formatting and only do minimal cleaning
+        cleanSummary = cleanSummary
+            // Remove dangerous artifacts but preserve newlines
+            .replace(/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi, '')
+            .replace(/\b(cache|hits|lastAccessed|accessCount|Decompression)\b/gi, '')
+            .replace(/\b0x[0-9A-Fa-f]+/g, '')
+            // Clean up extra spaces within lines but preserve paragraph structure
+            .replace(/ {2,}/g, ' ')  // Multiple spaces become single space
+            .replace(/\t/g, ' ')     // Tabs become spaces
+            .trim();
     }
     const cleanURL = sanitizeURL(options.url);
     const cleanMetadata = sanitizeMetadata(options.metadata);
