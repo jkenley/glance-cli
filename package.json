@@ -35,7 +35,7 @@
         "url": "https://github.com/jkenley/glance-cli/issues"
     },
     "bin": {
-        "glance": "./dist/cli.js"
+        "glance": "dist/cli.js"
     },
     "type": "module",
     "engines": {
