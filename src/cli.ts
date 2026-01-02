@@ -650,7 +650,7 @@ if (values["list-models"]) {
   // Auto-detect best available model if not specified
   let modelToUse = values.model as string | undefined;
   if (!modelToUse) {
-    modelToUse = await getDefaultModel(CONFIG.OLLAMA_ENDPOINT);
+    modelToUse = await getDefaultModel(CONFIG.OLLAMA_ENDPOINT, values["prefer-quality"]);
     if (values.verbose) {
       console.log(chalk.dim(`Auto-selected model: ${modelToUse}`));
     }
