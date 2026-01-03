@@ -28,7 +28,7 @@ async function getTextWithProperEncoding(response: Response): Promise<string> {
     
     // Try to extract encoding from Content-Type header
     const charsetMatch = contentType.match(/charset=([^;]+)/i);
-    const declaredCharset = charsetMatch ? charsetMatch[1].toLowerCase().trim() : null;
+    const declaredCharset = charsetMatch ? charsetMatch[1]?.toLowerCase().trim() ?? null  : null;
     
     try {
         // Get response as array buffer first to handle encoding properly
@@ -48,12 +48,12 @@ async function getTextWithProperEncoding(response: Response): Promise<string> {
             // Look for charset in meta tags
             const metaCharsetMatch = preview.match(/<meta[^>]*charset[=\s]*["\']?([^"'\s>]+)/i);
             if (metaCharsetMatch) {
-                detectedCharset = metaCharsetMatch[1].toLowerCase().trim();
+                detectedCharset = metaCharsetMatch[1]?.toLowerCase().trim() ?? null;
             } else {
                 // Look for HTTP-EQUIV content-type
                 const httpEquivMatch = preview.match(/<meta[^>]*http-equiv[=\s]*["\']?content-type["\']?[^>]*content[=\s]*["\']?[^"']*charset[=\s]*([^"'\s;]+)/i);
                 if (httpEquivMatch) {
-                    detectedCharset = httpEquivMatch[1].toLowerCase().trim();
+                    detectedCharset = httpEquivMatch[1]?.toLowerCase().trim() ?? null;
                 }
             }
         }
@@ -68,7 +68,7 @@ async function getTextWithProperEncoding(response: Response): Promise<string> {
         
         // Try to decode with the detected/declared charset
         try {
-            const decoder = new TextDecoder(normalizedCharset, { fatal: false });
+            const decoder = new TextDecoder(normalizedCharset as any, { fatal: false });
             let text = decoder.decode(bytes);
             
             // Clean up any remaining problematic characters
@@ -756,22 +756,6 @@ async function fetchWithRetry(
  * @param url - URL to fetch
  * @param options - Fetch options
  * @returns HTML content
- * 
- * @example
- * // Simple fetch (fast)
- * const html = await fetchPage("https://example.com");
- * 
- * @example
- * // Full render for JavaScript-heavy sites
- * const html = await fetchPage("https://react-app.com", { fullRender: true });
- * 
- * @example
- * // Custom options
- * const html = await fetchPage("https://example.com", {
- *   timeout: 60000,
- *   maxSize: 100 * 1024 * 1024,  // 100MB
- *   userAgent: "Custom Bot/1.0"
- * });
  */
 export async function fetchPage(
     url: string,

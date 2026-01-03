@@ -6,7 +6,7 @@
 - **Privacy-first** – Your data stays on your machine
 - **Lightning fast** – Built with Bun and TypeScript
 - **AI-powered formatting** – Intelligent content structure for `--full` mode
-- **Production-ready** – Smart caching, error handling, and retry logic
+- **Production-ready** – Error handling, and retry logic
 
 Turn any webpage into beautifully formatted, terminal-friendly insights — no browser needed.
 
@@ -392,33 +392,27 @@ glance https://lemonde.fr --tldr -l fr --export french-news.md
 glance https://example.com --model llama3  # Free, fast, private
 ```
 
-**2. Cache speeds up repeated requests:**
-```bash
-glance https://docs.com  # First: 3s
-glance https://docs.com  # Cached: 0.1s
-```
-
-**3. Pipe output for scripting:**
+**2. Pipe output for scripting:**
 ```bash
 glance https://example.com --format plain | grep "keyword" | wc -l
 ```
 
-**4. Save audio for commute:**
+**3. Save audio for commute:**
 ```bash
 glance https://article.com --tldr --audio-output commute.mp3
 ```
 
-**5. Use streaming for long content:**
+**4. Use streaming for long content:**
 ```bash
 glance https://long-article.com --stream
 ```
 
-**6. Read full articles without summarization:**
+**5. Read full articles without summarization:**
 ```bash
 glance https://blog-post.com --full --read
 ```
 
-**7. AI-powered smart formatting:**
+**6. AI-powered smart formatting:**
 ```bash
 # Automatically formats messy content for readability
 glance https://complex-site.com --full  # AI fixes formatting
