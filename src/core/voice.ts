@@ -108,6 +108,23 @@ export class VoiceSynthesizer {
         return await this.synthesizeWithLocalTTS(cleanText, options);
     }
     
+    async synthesizeCleanedText(cleanedText: string, options: VoiceOptions = {}): Promise<VoiceResult> {
+        // Use the already cleaned text directly (skip cleaning step)
+        
+        // Try ElevenLabs first if API key is available
+        if (this.client && this.apiKey) {
+            try {
+                return await this.synthesizeWithElevenLabs(cleanedText, options);
+            } catch (error) {
+                console.warn(chalk.yellow('⚠️  ElevenLabs failed, falling back to local TTS'));
+                console.error(error);
+            }
+        }
+        
+        // Fallback to local TTS
+        return await this.synthesizeWithLocalTTS(cleanedText, options);
+    }
+    
     private async synthesizeWithElevenLabs(text: string, options: VoiceOptions): Promise<VoiceResult> {
         if (!this.client) {
             throw new Error('ElevenLabs client not initialized');
@@ -471,7 +488,7 @@ export class VoiceSynthesizer {
         return descriptions[voiceName] || 'Available Voice';
     }
     
-    private cleanTextForSpeech(text: string): string {
+    cleanTextForSpeech(text: string): string {
         // Remove markdown formatting
         let cleaned = text
             .replace(/#{1,6}\s/g, '') // Remove headers
@@ -618,4 +635,29 @@ export class VoiceSynthesizer {
 
 export function createVoiceSynthesizer(apiKey?: string): VoiceSynthesizer {
     return new VoiceSynthesizer(apiKey);
+}
+
+export function cleanTextForSpeech(text: string): string {
+    // Remove markdown formatting
+    let cleaned = text
+        .replace(/#{1,6}\s/g, '') // Remove headers
+        .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold
+        .replace(/\*([^*]+)\*/g, '$1') // Remove italic
+        .replace(/`([^`]+)`/g, '$1') // Remove code blocks
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links
+        .replace(/^[-*+]\s/gm, '') // Remove list markers
+        .replace(/^\d+\.\s/gm, ''); // Remove numbered lists
+    
+    // Remove excessive whitespace
+    cleaned = cleaned
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    
+    // Limit length for TTS (some services have limits)
+    const maxLength = 5000;
+    if (cleaned.length > maxLength) {
+        cleaned = cleaned.substring(0, maxLength) + '...';
+    }
+    
+    return cleaned;
 }
