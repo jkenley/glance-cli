@@ -179,7 +179,7 @@ export async function runCli() {
     // Prepare options
     const options: GlanceOptions = {
       model: values.model,
-      language: values.language,
+      language: values.language || "en",
       tldr: values.tldr,
       keyPoints: values["key-points"],
       eli5: values.eli5,
