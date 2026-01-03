@@ -1,0 +1,588 @@
+/**
+ * Command handlers for Glance CLI
+ * Exports individual command functions that can be used programmatically
+ */
+
+import chalk from "chalk";
+import { writeFile } from "node:fs/promises";
+import { fetchPage } from "../core/fetcher";
+import { extractCleanText, extractLinks, extractMetadata } from "../core/extractor";
+import { summarize, detectProvider } from "../core/summarizer";
+import { formatOutput } from "../core/formatter";
+import { takeScreenshot } from "../core/screenshot";
+import { getCacheKey, getCache, setCache, clearCache } from "../core/cache";
+import { createVoiceSynthesizer } from "../core/voice";
+import { detectServices, getDefaultModel, showCostWarning } from "../core/service-detector";
+import { sanitizeAIResponse } from "../core/text-cleaner";
+import { LANGUAGE_MAP, CONFIG } from "./config";
+import { GlanceError, ErrorCodes } from "./errors";
+import { logger } from "./logger";
+import { createSpinner, sanitizeOutputForTerminal, withRetry, formatFileSize, getFileExtension } from "./utils";
+import { showServiceStatus } from "./display";
+import type { ServiceStatus } from "./types";
+
+export interface GlanceOptions {
+  url?: string;
+  model?: string;
+  language?: string;
+  tldr?: boolean;
+  keyPoints?: boolean;
+  eli5?: boolean;
+  emoji?: boolean;
+  full?: boolean;
+  customQuestion?: string;
+  stream?: boolean;
+  maxTokens?: number;
+  export?: string;
+  noCache?: boolean;
+  clearCache?: boolean;
+  screenshot?: string;
+  fullRender?: boolean;
+  metadata?: boolean;
+  links?: boolean;
+  read?: boolean;
+  voice?: string;
+  audioOutput?: string;
+  listVoices?: boolean;
+  checkServices?: boolean;
+  freeOnly?: boolean;
+  preferQuality?: boolean;
+  debug?: boolean;
+}
+
+/**
+ * Main glance command - fetch and summarize a webpage
+ */
+export async function glance(url: string, options: GlanceOptions = {}): Promise<string> {
+  const startTime = Date.now();
+
+  // Set debug logging if requested
+  if (options.debug) {
+    logger.setLevel("debug");
+  }
+
+  // Language setup
+  const language = options.language || "en";
+  const languageName = LANGUAGE_MAP[language] || "English";
+
+  // Cache handling
+  const cacheOptions = {
+    noCache: options.noCache,
+    ...options
+  };
+
+  const cacheKey = getCacheKey(url, cacheOptions);
+
+  if (!options.noCache) {
+    const cachedSummary = await getCache(cacheKey);
+    if (cachedSummary) {
+      logger.info("Using cached summary");
+
+      // Handle voice synthesis for cached content
+      if (options.read || options.audioOutput) {
+        await handleVoiceSynthesis(cachedSummary, { language, ...options });
+      }
+
+      return cachedSummary;
+    }
+  }
+
+  // Fetch the webpage
+  const fetchSpinner = createSpinner("Fetching webpage...");
+  fetchSpinner.start();
+
+  let html: string;
+  try {
+    html = await withRetry(
+      () => fetchPage(url, { fullRender: options.fullRender }),
+      {
+        onRetry: (attempt, error) => {
+          fetchSpinner.text = `Fetching webpage... (retry ${attempt})`;
+        }
+      }
+    );
+    fetchSpinner.succeed("Webpage fetched successfully");
+  } catch (error: any) {
+    fetchSpinner.fail("Failed to fetch webpage");
+    throw new GlanceError(
+      error.message,
+      ErrorCodes.FETCH_FAILED,
+      "Could not fetch the webpage. Please check the URL and your internet connection.",
+      true,
+      "Try again or use --full-render for JavaScript-heavy sites"
+    );
+  }
+
+  // Extract content
+  const extractSpinner = createSpinner("Extracting content...");
+  extractSpinner.start();
+
+  const cleanText = extractCleanText(html);
+
+  if (cleanText.length > CONFIG.MAX_CONTENT_SIZE) {
+    extractSpinner.fail("Content too large");
+    throw new GlanceError(
+      `Content size (${formatFileSize(cleanText.length)}) exceeds maximum allowed`,
+      ErrorCodes.CONTENT_TOO_LARGE,
+      `The webpage content is too large to process (>${formatFileSize(CONFIG.MAX_CONTENT_SIZE)})`,
+      false
+    );
+  }
+
+  extractSpinner.succeed(`Content extracted (${formatFileSize(cleanText.length)})`);
+
+  // Handle metadata extraction
+  if (options.metadata) {
+    const metadata = extractMetadata(html);
+    console.log(chalk.bold("\n📊 Page Metadata:"));
+    console.log(formatOutput(JSON.stringify(metadata, null, 2), {
+      format: "json",
+      url: url
+    }));
+  }
+
+  // Handle links extraction
+  if (options.links) {
+    const links = extractLinks(html);
+    console.log(chalk.bold(`\n🔗 Found ${links.length} links:`));
+    links.forEach(link => console.log(chalk.cyan(`  • ${link}`)));
+  }
+
+  // Handle screenshot
+  if (options.screenshot) {
+    await handleScreenshot(url, options.screenshot);
+  }
+
+  // Handle full content mode (no summarization)
+  if (options.full) {
+    const fullContent = await handleFullContent(cleanText, { language, ...options });
+
+    // Cache the full content
+    if (!options.noCache) {
+      await setCache(cacheKey, fullContent);
+    }
+
+    return fullContent;
+  }
+
+  // Summarize content
+  const summary = await summarizeContent(cleanText, url, { language, ...options });
+
+  // Cache the summary
+  if (!options.noCache) {
+    await setCache(cacheKey, summary);
+  }
+
+  // Handle voice synthesis
+  if (options.read || options.audioOutput) {
+    await handleVoiceSynthesis(summary, { language, ...options });
+  }
+
+  const duration = Date.now() - startTime;
+  logger.debug(`Total execution time: ${duration}ms`);
+
+  return summary;
+}
+
+/**
+ * Handle full content mode with optional AI formatting and translation
+ */
+async function handleFullContent(
+  content: string,
+  options: GlanceOptions & { language: string }
+): Promise<string> {
+  let finalContent = content;
+  const needsTranslation = options.language && options.language !== "en";
+
+  if (needsTranslation || true) { // Always apply smart formatting for better readability
+    const fullModeSpinner = createSpinner(
+      needsTranslation
+        ? "🌍 Translating and formatting full content..."
+        : "🧾 Applying smart formatting..."
+    );
+    fullModeSpinner.start();
+
+    try {
+      // Determine model to use
+      const model = options.model || await getDefaultModel(undefined, !!options.preferQuality);
+      const provider = detectProvider(model);
+
+      // Use AI for translation or formatting
+      const aiOptions = {
+        model,
+        language: options.language,
+        stream: false, // Don't stream for full content
+        maxTokens: options.maxTokens || 8000,
+        translate: needsTranslation,
+        format: true, // Always apply smart formatting
+      };
+
+      const processedContent = await summarize(finalContent, {
+        model: aiOptions.model,
+        language: aiOptions.language,
+        stream: aiOptions.stream,
+        maxTokens: aiOptions.maxTokens,
+        translate: aiOptions.translate as boolean | undefined,
+        format: aiOptions.format,
+      });
+
+      finalContent = sanitizeAIResponse(processedContent);
+
+      fullModeSpinner.succeed(
+        needsTranslation
+          ? "Translation and formatting complete"
+          : "Smart formatting applied"
+      );
+    } catch (error: any) {
+      fullModeSpinner.fail(
+        needsTranslation
+          ? "Translation failed - showing original content"
+          : "Smart formatting failed - showing original content"
+      );
+      logger.error("Full content processing error:", error);
+    }
+  }
+
+  // Format the output
+  const formattedOutput = formatOutput(finalContent, {
+    format: "terminal",
+    url: "full-content",
+    isFullContent: true,
+  });
+
+  // Export if requested
+  if (options.export) {
+    await exportContent(formattedOutput, options.export, { isFullContent: true });
+  }
+
+  return formattedOutput;
+}
+
+/**
+ * Summarize content using AI
+ */
+async function summarizeContent(
+  content: string,
+  url: string,
+  options: GlanceOptions & { language: string }
+): Promise<string> {
+  const model = options.model || await getDefaultModel(undefined, !!options.preferQuality);
+
+  // Show cost warning if using premium model
+  if (!options.freeOnly) {
+    await showCostWarning(model);
+  }
+
+  const summarizeSpinner = options.stream
+    ? null
+    : createSpinner(`Processing with ${model}...`);
+
+  summarizeSpinner?.start();
+
+  try {
+    const summary = await withRetry(
+      () => summarize(content, {
+        model,
+        tldr: options.tldr,
+        keyPoints: options.keyPoints,
+        eli5: options.eli5,
+        emoji: options.emoji,
+        language: options.language,
+        stream: options.stream,
+        maxTokens: options.maxTokens,
+        customQuestion: options.customQuestion,
+      }),
+      {
+        attempts: 2,
+        onRetry: (attempt) => {
+          if (summarizeSpinner) {
+            summarizeSpinner.text = `Processing with ${model}... (retry ${attempt})`;
+          }
+        }
+      }
+    );
+
+    summarizeSpinner?.succeed("Summary generated successfully");
+
+    // Clean and format the summary
+    const cleanSummary = sanitizeOutputForTerminal(sanitizeAIResponse(summary));
+    const formattedSummary = formatOutput(cleanSummary, {
+      format: "terminal",
+      url: url,
+      customQuestion: options.customQuestion,
+    });
+
+    // Export if requested
+    if (options.export) {
+      await exportContent(formattedSummary, options.export, { url });
+    }
+
+    return formattedSummary;
+  } catch (error: any) {
+    summarizeSpinner?.fail("Failed to generate summary");
+    throw new GlanceError(
+      error.message,
+      ErrorCodes.SUMMARIZE_FAILED,
+      "Failed to generate summary. The AI service might be unavailable.",
+      true,
+      "Try a different model with --model or check your API keys"
+    );
+  }
+}
+
+/**
+ * Handle voice synthesis
+ */
+async function handleVoiceSynthesis(
+  text: string,
+  options: GlanceOptions & { language: string }
+): Promise<void> {
+  try {
+    const synthesizer = createVoiceSynthesizer();
+
+    if (options.audioOutput) {
+      const audioSpinner = createSpinner(`Generating audio file: ${options.audioOutput}`);
+      audioSpinner.start();
+
+      const result = await synthesizer.synthesize(text, {
+        voice: options.voice,
+        language: options.language,
+        outputFile: options.audioOutput,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Voice synthesis failed');
+      }
+
+      audioSpinner.succeed(`Audio saved to ${options.audioOutput}`);
+    } else {
+      const result = await synthesizer.synthesize(text, {
+        voice: options.voice,
+        language: options.language,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Voice synthesis failed');
+      }
+    }
+  } catch (error: any) {
+    logger.error("Voice synthesis failed:", error);
+    throw new GlanceError(
+      error.message,
+      ErrorCodes.VOICE_SYNTHESIS_FAILED,
+      "Failed to synthesize voice. Check your voice settings or try a different voice.",
+      false
+    );
+  }
+}
+
+/**
+ * Handle screenshot capture
+ */
+async function handleScreenshot(url: string, filename: string): Promise<void> {
+  const screenshotSpinner = createSpinner(`Capturing screenshot: ${filename}`);
+  screenshotSpinner.start();
+
+  try {
+    await takeScreenshot(url, filename);
+    screenshotSpinner.succeed(`Screenshot saved to ${filename}`);
+  } catch (error: any) {
+    screenshotSpinner.fail("Failed to capture screenshot");
+    logger.error("Screenshot error:", error);
+  }
+}
+
+/**
+ * Export content to file
+ */
+async function exportContent(
+  content: string,
+  filename: string,
+  options: { url?: string; isFullContent?: boolean } = {}
+): Promise<void> {
+  const extension = getFileExtension(filename);
+  const format = extension || "txt";
+
+  const formattedContent = formatOutput(content, {
+    format: format as "terminal" | "markdown" | "json" | "html" | "plain",
+    url: options.url || "exported-content",
+    isFullContent: options.isFullContent,
+  });
+
+  try {
+    await writeFile(filename, formattedContent, "utf-8");
+    logger.info(`Content exported to ${filename}`);
+  } catch (error: any) {
+    throw new GlanceError(
+      error.message,
+      ErrorCodes.EXPORT_FAILED,
+      `Failed to export content to ${filename}`,
+      false
+    );
+  }
+}
+
+/**
+ * Clear cache command
+ */
+export async function clearCacheCommand(): Promise<void> {
+  const spinner = createSpinner("Clearing cache...");
+  spinner.start();
+
+  try {
+    await clearCache();
+    spinner.succeed("Cache cleared successfully");
+  } catch (error: any) {
+    spinner.fail("Failed to clear cache");
+    throw error;
+  }
+}
+
+/**
+ * List voices command
+ */
+export async function listVoicesCommand(): Promise<void> {
+  try {
+    const synthesizer = createVoiceSynthesizer();
+    // Get all available voices
+    const englishVoices = await synthesizer.listVoices("en");
+    const frenchVoices = await synthesizer.listVoices("fr");
+    const spanishVoices = await synthesizer.listVoices("es");
+    const haitianVoices = await synthesizer.listVoices("ht");
+
+    console.log(chalk.bold("\n🎤 Available Voices by Language:\n"));
+
+    if (englishVoices.length > 0) {
+      console.log(chalk.bold("🇺🇸 English:"));
+      englishVoices.forEach(v => console.log(`  ${v}`));
+    }
+
+    if (frenchVoices.length > 0) {
+      console.log(chalk.bold("\n🇫🇷 French:"));
+      frenchVoices.forEach(v => console.log(`  ${v}`));
+    }
+
+    if (spanishVoices.length > 0) {
+      console.log(chalk.bold("\n🇪🇸 Spanish:"));
+      spanishVoices.forEach(v => console.log(`  ${v}`));
+    }
+
+    if (haitianVoices.length > 0) {
+      console.log(chalk.bold("\n🇭🇹 Haitian Creole:"));
+      haitianVoices.forEach(v => console.log(`  ${v}`));
+    }
+
+    console.log(chalk.dim("\nUse with: glance <url> --voice <voice-name> --read"));
+  } catch (error: any) {
+    logger.error("Failed to list voices:", error);
+    throw error;
+  }
+}
+
+/**
+ * Check services command
+ */
+export async function checkServicesCommand(): Promise<void> {
+  const spinner = createSpinner("Detecting available services...");
+  spinner.start();
+
+  try {
+    const services = await detectServices();
+    spinner.succeed("Service detection complete");
+
+    // Convert DetectionResult to our ServiceStatus type
+    const ollamaService = services.ai.available.find(s => s.name === 'ollama');
+    const openaiService = services.ai.available.find(s => s.name === 'openai');
+    const geminiService = services.ai.available.find(s => s.name === 'gemini');
+    const elevenlabsService = services.voice.available.find(s => s.name === 'elevenlabs');
+
+    const serviceStatus: ServiceStatus = {
+      ollama: {
+        available: !!ollamaService?.available,
+        models: [], // Will be populated separately if needed
+        error: ollamaService?.reason
+      },
+      openai: {
+        available: !!openaiService?.available,
+        error: openaiService?.reason
+      },
+      gemini: {
+        available: !!geminiService?.available,
+        error: geminiService?.reason
+      },
+      elevenlabs: {
+        available: !!elevenlabsService?.available,
+        voices: [], // Will be populated separately if needed
+        error: elevenlabsService?.reason
+      },
+      defaultModel: services.ai.preferred,
+      priority: "Free services first",
+      recommendations: [
+        "Install Ollama for free local AI",
+        "Add OpenAI API key for premium quality",
+        "Add ElevenLabs API key for natural voice synthesis"
+      ]
+    };
+
+    showServiceStatus(serviceStatus);
+  } catch (error: any) {
+    spinner.fail("Service detection failed");
+    logger.error("Service detection error:", error);
+
+    // Show empty status with error message
+    const emptyStatus: ServiceStatus = {
+      ollama: { available: false, error: "Detection failed" },
+      openai: { available: false, error: "Detection failed" },
+      gemini: { available: false, error: "Detection failed" },
+      elevenlabs: { available: false, error: "Detection failed" },
+      recommendations: ["Check your internet connection and try again"]
+    };
+
+    showServiceStatus(emptyStatus);
+    throw error;
+  }
+}
+
+/**
+ * List Ollama models command
+ */
+export async function listModelsCommand(): Promise<void> {
+  const endpoint = process.env.OLLAMA_ENDPOINT || CONFIG.OLLAMA_ENDPOINT;
+  const spinner = createSpinner("Fetching Ollama models...");
+  spinner.start();
+
+  try {
+    const response = await fetch(`${endpoint}/api/tags`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch models: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as { models: Array<{ name: string; size?: number; details?: { parameter_size?: string } }> };
+    spinner.succeed("Models fetched successfully");
+
+    if (!data.models || data.models.length === 0) {
+      console.log(chalk.yellow("\nNo models found. Install models with:"));
+      console.log(chalk.cyan("  ollama pull llama3"));
+      console.log(chalk.cyan("  ollama pull mistral"));
+      return;
+    }
+
+    console.log(chalk.bold(`\n📦 Available Ollama Models (${data.models.length}):\n`));
+
+    data.models.forEach((model: any) => {
+      const size = model.size ? `(${(model.size / 1e9).toFixed(1)}GB)` : "";
+      console.log(`  ${chalk.cyan(model.name)} ${chalk.gray(size)}`);
+      if (model.details?.parameter_size) {
+        console.log(`    ${chalk.gray(model.details.parameter_size)} parameters`);
+      }
+    });
+
+    console.log(chalk.dim("\nUse any model with: glance <url> --model <model-name>"));
+  } catch (error: any) {
+    spinner.fail("Failed to fetch models");
+    console.error(chalk.red("\nCannot connect to Ollama. Make sure it's running:"));
+    console.log(chalk.cyan("  ollama serve"));
+    throw error;
+  }
+}

@@ -7,7 +7,7 @@ featuredImage: "/blogs/glance-cli-terminal.jpg"
 imageCredit: "Terminal interface by Kenley Jean-Louis"
 imageCreditUrl: "https://github.com/jkenley/glance-cli"
 publishedAt: "2026-01-02"
-readTime: "8 min"
+readTime: "9 min"
 category: "open-source"
 tags: ["cli", "terminal", "developer-tools", "open-source"]
 author:
@@ -19,7 +19,7 @@ author:
   socialGithub: "https://github.com/jkenley"
 status: "published"
 createdAt: "2026-01-02"
-updatedAt: "2026-01-02"
+updatedAt: "2026-01-03"
 ---
 
 # Glance CLI: AI-Powered Web Reader with Voice - Now 100% Free!
@@ -99,6 +99,41 @@ glance https://example.com --free-only
 
 # Use premium quality when needed
 glance https://complex-paper.com --prefer-quality
+```
+
+### 📖 **NEW: Full Content Mode with AI Formatting** (v0.9.1)
+
+Revolutionary feature that transforms how you consume long-form content:
+
+- **Complete Articles**: Read entire blog posts, documentation, and papers without summarization
+- **AI Smart Formatting**: Automatically organizes messy website layouts into beautiful, readable structure
+- **Perfect for Voice**: Optimized formatting works seamlessly with voice synthesis
+- **Multilingual Translation**: Read French articles in English, Spanish content in French, etc.
+
+```bash
+# Read entire articles with perfect formatting
+glance https://messy-blog.com --full --read
+
+# Translate and format French content to English
+glance https://lemonde.fr/tech-article --full -l en --read
+
+# Save beautifully formatted content
+glance https://complex-website.com --full --export clean-article.md
+```
+
+### 🔧 **CRITICAL FIX: Cache System** (v0.9.2)
+
+Completely resolved cache corruption issues that affected some users:
+
+- **Zero Cache Corruption**: Fixed garbled/binary artifacts in cached content
+- **Proper UTF-8 Encoding**: All content now handles international characters correctly
+- **Lightning Fast**: Repeat visits to same content are nearly instant
+- **Automatic Recovery**: System automatically cleans up any corrupted cache entries
+
+```bash
+# Rock-solid caching - no more corrupted content
+glance https://any-website.com --tldr  # First visit: processes content
+glance https://any-website.com --tldr  # Second visit: instant from cache
 ```
 
 ---
@@ -238,6 +273,7 @@ glance https://article.com                    # Standard summary
 glance https://article.com --tldr             # One sentence
 glance https://article.com --key-points       # Bullet points  
 glance https://article.com --eli5             # Simple explanation
+glance https://article.com --full             # Complete article (NEW!)
 glance https://article.com --ask "question"   # Ask anything
 ```
 
@@ -293,7 +329,7 @@ glance <url> --links                  # Extract all links
 
 ## What People Are Saying
 
-Since releasing v0.8.8, the response has been incredible. Here's what I'm hearing:
+Since releasing v0.9.2, the response has been incredible. Here's what I'm hearing:
 
 **"Finally, a tool that respects my privacy AND my wallet!"** - The 100% free local approach really resonates with developers who are tired of subscription fatigue.
 
@@ -309,15 +345,27 @@ If you try it, I'd genuinely appreciate your feedback—both positive and critic
 
 ---
 
-## Limitations & Improvements in v0.8.8
+## Latest Updates & Improvements in v0.9.2
 
-This is version 0.8.8 with major improvements, but I want to be transparent about current limitations:
+This is version 0.9.2 with major improvements and critical fixes. Here's what's been resolved:
 
-**✅ FIXED: Text formatting issues.** Earlier versions had aggressive text cleaning that destroyed paragraph structure—this is completely resolved.
+**✅ NEW: Full Content Mode with AI Formatting** (v0.9.1)
+- Read entire articles without summarization using `--full` flag
+- AI-powered smart formatting that organizes messy content intelligently
+- Perfect for listening to complete blog posts, documentation, and complex articles
+- Multilingual translation support for full content
 
-**✅ IMPROVED: Voice reliability.** Voice listing now shows only working voices with proper language mapping.
+**✅ CRITICAL FIX: Cache Corruption Issues** (v0.9.2)
+- Completely resolved cache corruption causing garbled/binary artifacts
+- Fixed double text cleaning that was destroying cached content
+- Proper UTF-8 encoding with error handling for all content types
+- Enhanced cache validation and automatic recovery from corrupted entries
 
-**✅ ENHANCED: Model selection.** The `--prefer-quality` flag now correctly prioritizes premium services when needed.
+**✅ PREVIOUS FIXES:**
+- Text formatting issues completely resolved
+- Voice reliability with proper language mapping
+- `--prefer-quality` flag working correctly
+- Smart text cleaning that preserves paragraph structure
 
 **Still working on:**
 - **Local AI quality**: Llama3 is good but not GPT-4 level for complex analysis
@@ -325,11 +373,11 @@ This is version 0.8.8 with major improvements, but I want to be transparent abou
 - **Paywalled content**: Can't access content behind logins (by design)
 - **More languages**: Currently supports 4 languages, working on expanding
 
-**Recent stability improvements:**
-- Smart text cleaning that preserves formatting
-- Better binary artifact detection
-- Improved cache system with compression
-- More helpful error messages
+**Latest stability improvements:**
+- Rock-solid cache system with zero corruption
+- Intelligent content formatting using AI
+- Better memory management for large content
+- Enhanced error recovery and validation
 
 I'm actively addressing these based on real user feedback.
 
@@ -407,6 +455,12 @@ glance https://techcrunch.com --tldr --read
 
 ### 🎯 Test the Latest Features
 ```bash
+# NEW: Full content with AI smart formatting (v0.9.1)
+glance https://messy-blog.com --full --read
+
+# Multilingual full content with translation
+glance https://lemonde.fr/article --full -l en --read
+
 # Voice output with language intelligence
 glance https://lemonde.fr --voice antoine -l fr --read
 
@@ -416,7 +470,7 @@ glance --check-services
 # Audio export for later
 glance https://long-article.com --key-points --audio-output summary.mp3
 
-# Advanced features
+# Advanced features with rock-solid caching (v0.9.2)
 glance https://complex-site.com --full-render --screenshot page.png --stream
 ```
 
@@ -450,7 +504,7 @@ It's not perfect and it won't solve everyone's problems. But if you're someone w
 
 ...then this might just transform your workflow like it did mine.
 
-The v0.8.8 release represents months of refinement based on real user feedback. The voice features alone have changed how I consume information daily.
+The v0.9.2 release represents months of refinement based on real user feedback. The full content mode with AI formatting and rock-solid cache system have completely transformed how I consume information daily.
 
 **Try it for 30 seconds—it works immediately, no setup required.** Then decide if you want the full free setup with local AI.
 
@@ -475,6 +529,7 @@ ollama pull llama3
 glance <url>                        # Summary
 glance <url> --tldr                 # One sentence
 glance <url> --key-points           # Bullet points
+glance <url> --full                 # Complete article (NEW!)
 glance <url> --ask "question"       # Ask anything
 glance <url> --export notes.md      # Save output
 
@@ -493,6 +548,6 @@ glance --help
 
 ---
 
-**Current version: 0.8.8** | Released: January 2026 | **Major voice & stability update**
+**Current version: 0.9.2** | Released: January 2026 | **Full content mode with AI formatting & cache stability**
 
 Have questions or found a bug? Open an issue on GitHub or reach out on Twitter.
