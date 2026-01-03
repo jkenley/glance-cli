@@ -12,13 +12,14 @@ import { formatOutput } from "../core/formatter";
 import { takeScreenshot } from "../core/screenshot";
 import { getCacheKey, getCache, setCache, clearCache } from "../core/cache";
 import { createVoiceSynthesizer } from "../core/voice";
-import { detectServices, getDefaultModel, showCostWarning } from "../core/service-detector";
+import { getDefaultModel, showCostWarning } from "../core/service-detector";
 import { sanitizeAIResponse } from "../core/text-cleaner";
 import { LANGUAGE_MAP, CONFIG } from "./config";
 import { GlanceError, ErrorCodes } from "./errors";
 import { logger } from "./logger";
 import { createSpinner, sanitizeOutputForTerminal, withRetry, formatFileSize, getFileExtension } from "./utils";
 import { showServiceStatus } from "./display";
+import { validateAPIKeys } from "./validators";
 import type { ServiceStatus } from "./types";
 
 export interface GlanceOptions {
@@ -487,42 +488,70 @@ export async function checkServicesCommand(): Promise<void> {
   spinner.start();
 
   try {
-    const services = await detectServices();
-    spinner.succeed("Service detection complete");
+    // Use our own validators instead of the old detectServices
+    const [ollamaCheck, openaiCheck, geminiCheck] = await Promise.all([
+      validateAPIKeys("ollama").catch(() => ({ valid: false, error: "Connection failed" })),
+      validateAPIKeys("openai").catch(() => ({ valid: false, error: "API key missing" })),
+      validateAPIKeys("google").catch(() => ({ valid: false, error: "API key missing" }))
+    ]);
 
-    // Convert DetectionResult to our ServiceStatus type
-    const ollamaService = services.ai.available.find(s => s.name === 'ollama');
-    const openaiService = services.ai.available.find(s => s.name === 'openai');
-    const geminiService = services.ai.available.find(s => s.name === 'gemini');
-    const elevenlabsService = services.voice.available.find(s => s.name === 'elevenlabs');
+    // Get Ollama models if available
+    let ollamaModels: string[] = [];
+    if (ollamaCheck.valid) {
+      try {
+        const endpoint = process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
+        const response = await fetch(`${endpoint}/api/tags`);
+        if (response.ok) {
+          const data = await response.json();
+          ollamaModels = data.models?.map((m: any) => m.name) || [];
+        }
+      } catch {
+        // Ignore model fetch errors
+      }
+    }
+
+    // Check ElevenLabs
+    const elevenlabsCheck = { 
+      valid: !!process.env.ELEVENLABS_API_KEY, 
+      error: process.env.ELEVENLABS_API_KEY ? undefined : "API key missing" 
+    };
+
+    spinner.succeed("Service detection complete");
 
     const serviceStatus: ServiceStatus = {
       ollama: {
-        available: !!ollamaService?.available,
-        models: [], // Will be populated separately if needed
-        error: ollamaService?.reason
+        available: ollamaCheck.valid,
+        models: ollamaModels,
+        error: ollamaCheck.error
       },
       openai: {
-        available: !!openaiService?.available,
-        error: openaiService?.reason
+        available: openaiCheck.valid,
+        error: openaiCheck.error
       },
       gemini: {
-        available: !!geminiService?.available,
-        error: geminiService?.reason
+        available: geminiCheck.valid,
+        error: geminiCheck.error
       },
       elevenlabs: {
-        available: !!elevenlabsService?.available,
-        voices: [], // Will be populated separately if needed
-        error: elevenlabsService?.reason
+        available: elevenlabsCheck.valid,
+        voices: [], // Could be populated with API call if needed
+        error: elevenlabsCheck.error
       },
-      defaultModel: services.ai.preferred,
+      defaultModel: ollamaCheck.valid ? "ollama" : openaiCheck.valid ? "gpt-4o-mini" : geminiCheck.valid ? "gemini-2.0-flash-exp" : "None available",
       priority: "Free services first",
-      recommendations: [
-        "Install Ollama for free local AI",
-        "Add OpenAI API key for premium quality",
-        "Add ElevenLabs API key for natural voice synthesis"
-      ]
+      recommendations: []
     };
+
+    // Add recommendations based on missing services
+    if (!serviceStatus.ollama.available) {
+      serviceStatus.recommendations?.push("Install Ollama for free local AI");
+    }
+    if (!serviceStatus.openai.available) {
+      serviceStatus.recommendations?.push("Add OpenAI API key for premium quality");
+    }
+    if (!serviceStatus.elevenlabs.available) {
+      serviceStatus.recommendations?.push("Add ElevenLabs API key for natural voice synthesis");
+    }
 
     showServiceStatus(serviceStatus);
   } catch (error: any) {
