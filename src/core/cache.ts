@@ -333,9 +333,10 @@ export async function getCache(key: string): Promise<string | null> {
     // Only clean if there are actual artifacts detected
     // DO NOT apply nuclear cleaning on read - it was already cleaned on write
     if (hasBinaryArtifacts(decodedContent)) {
-      console.error("🚨 Cache read corruption detected - cache may be corrupt for key:", key);
-      // Try to salvage what we can
-      decodedContent = sanitizeAIResponse(decodedContent);
+      console.error("🚨 Cache corruption detected - deleting corrupted entry for key:", key);
+      // Delete the corrupted cache entry completely - don't try to salvage
+      await deleteCache(key);
+      return null;
     }
     
     return decodedContent;
