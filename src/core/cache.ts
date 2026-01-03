@@ -300,12 +300,20 @@ export async function getCache(key: string): Promise<string | null> {
       try {
         content = Buffer.from(gunzipSync(new Uint8Array(content)).buffer);
       } catch (err: any) {
-        console.warn("Decompression failed for key:", key);
+        console.warn("Decompression failed for key:", key, "- cache entry may be corrupt");
+        // Delete corrupt cache entry
         await deleteCache(key);
         stats!.misses++;
         await saveStats();
         return null;
       }
+    }
+    
+    // Validate content size matches metadata
+    if (content.length === 0) {
+      console.warn("Empty cache content for key:", key);
+      await deleteCache(key);
+      return null;
     }
 
     // Update access metadata
@@ -318,17 +326,16 @@ export async function getCache(key: string): Promise<string | null> {
     stats!.hits++;
     await saveStats();
 
-    // Convert to string
-    const decoder = new TextDecoder();
+    // Convert to string with proper encoding
+    const decoder = new TextDecoder('utf-8', { fatal: false });
     let decodedContent = decoder.decode(content);
     
-    // NUCLEAR CLEANING: Apply aggressive sanitization to cached content
+    // Only clean if there are actual artifacts detected
+    // DO NOT apply nuclear cleaning on read - it was already cleaned on write
     if (hasBinaryArtifacts(decodedContent)) {
-      console.error("🚨 CRITICAL: Binary artifacts in cached content! Applying emergency cleaning...");
-      decodedContent = nuclearCleanText(sanitizeAIResponse(decodedContent));
-    } else {
-      // Still apply basic cleaning to cached content
-      decodedContent = nuclearCleanText(decodedContent);
+      console.error("🚨 Cache read corruption detected - cache may be corrupt for key:", key);
+      // Try to salvage what we can
+      decodedContent = sanitizeAIResponse(decodedContent);
     }
     
     return decodedContent;
@@ -366,14 +373,13 @@ export async function setCache(
       throw new Error("Cache value must be a string");
     }
 
-    // NUCLEAR CLEANING: Clean value before storing in cache
+    // Only clean if there are actual binary artifacts
+    // Be less aggressive to preserve content structure
     if (hasBinaryArtifacts(value)) {
-      console.error("🚨 CRITICAL: Binary artifacts in value being cached! Applying emergency cleaning...");
-      value = nuclearCleanText(sanitizeAIResponse(value));
-    } else {
-      // Still apply basic cleaning to cached content
-      value = nuclearCleanText(value);
+      console.warn("⚠️ Binary artifacts detected in cache value - cleaning before storage");
+      value = sanitizeAIResponse(value);
     }
+    // Don't apply nuclear cleaning to normal content - it destroys formatting
 
     // Check entry size
     const valueSize = Buffer.byteLength(value, "utf8");

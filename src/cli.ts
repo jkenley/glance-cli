@@ -48,7 +48,7 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 // === Configuration ===
 const CONFIG = {
-  VERSION: "0.9.1",
+  VERSION: "0.9.2",
   MAX_CONTENT_SIZE: 10 * 1024 * 1024, // 10MB
   FETCH_TIMEOUT: 30000, // 30s
   RETRY_ATTEMPTS: 3,
