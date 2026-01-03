@@ -177,29 +177,11 @@ glance https://example.com --format plain | grep "keyword"
 
 ---
 
-## 💾 Smart Caching
-
-Glance automatically caches results to save time and API costs:
-
-```bash
-# First request: ~3 seconds
-glance https://example.com
-
-# Cached request: ~0.1 seconds
-glance https://example.com
-
-# View cache stats
-glance --cache-stats
-
-# Clear cache
-glance --clear-cache
-```
-
-**Cache features:**
-- 24-hour TTL (configurable)
-- 70% compression
-- LRU eviction (100MB max)
-- Hit rate tracking
+## 🚀 Performance
+- Fast content extraction with Cheerio
+- Optimized AI model selection 
+- Efficient text processing pipeline
+- Lightweight 8MB bundle
 
 ---
 
@@ -339,12 +321,6 @@ glance <url> --full -l fr     # Full content translated to French
 -l, --language <code>         # Output language (en, fr, es, ht)
 -e, --emoji                   # Add emojis
 
-# Cache
---cache-stats                 # Show cache statistics
---cache-cleanup               # Remove expired entries
---clear-cache                 # Clear all cache
---no-cache                    # Skip cache for this request
-
 # Other
 -v, --verbose                 # Show detailed logs
 -h, --help                    # Show help
@@ -368,9 +344,6 @@ export ELEVENLABS_API_KEY=...
 # Ollama (optional, auto-detected)
 export OLLAMA_ENDPOINT=http://localhost:11434
 
-# Cache (optional)
-export GLANCE_CACHE_DIR=~/.glance/cache
-export GLANCE_CACHE_TTL=86400000  # 24h in ms
 ```
 
 ---

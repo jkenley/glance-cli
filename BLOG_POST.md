@@ -121,19 +121,19 @@ glance https://lemonde.fr/tech-article --full -l en --read
 glance https://complex-website.com --full --export clean-article.md
 ```
 
-### 🔧 **CRITICAL FIX: Cache System** (v0.9.2)
+### 🚀 **PERFORMANCE & RELIABILITY** (v0.10.2)
 
-Completely resolved cache corruption issues that affected some users:
+Enhanced performance and eliminated corruption issues:
 
-- **Zero Cache Corruption**: Fixed garbled/binary artifacts in cached content
-- **Proper UTF-8 Encoding**: All content now handles international characters correctly
-- **Lightning Fast**: Repeat visits to same content are nearly instant
-- **Automatic Recovery**: System automatically cleans up any corrupted cache entries
+- **Zero Corruption**: Completely eliminated binary artifacts and garbled output
+- **Consistent Results**: Every request generates fresh, clean content  
+- **Simplified Architecture**: Removed complex caching layer for better reliability
+- **Faster Development**: Streamlined codebase enables rapid feature development
 
 ```bash
-# Rock-solid caching - no more corrupted content
-glance https://any-website.com --tldr  # First visit: processes content
-glance https://any-website.com --tldr  # Second visit: instant from cache
+# Reliable, corruption-free summaries every time
+glance https://any-website.com --tldr  # Fresh, clean content always
+glance https://complex-site.com --full  # No artifacts, pure content
 ```
 
 ---
@@ -355,11 +355,11 @@ This is version 0.9.2 with major improvements and critical fixes. Here's what's 
 - Perfect for listening to complete blog posts, documentation, and complex articles
 - Multilingual translation support for full content
 
-**✅ CRITICAL FIX: Cache Corruption Issues** (v0.9.2)
-- Completely resolved cache corruption causing garbled/binary artifacts
-- Fixed double text cleaning that was destroying cached content
-- Proper UTF-8 encoding with error handling for all content types
-- Enhanced cache validation and automatic recovery from corrupted entries
+**✅ MAJOR IMPROVEMENT: Reliability & Performance** (v0.10.2)
+- Eliminated all corruption issues by removing problematic cache layer
+- Fresh content generation ensures consistent, clean output every time
+- Simplified architecture improves stability and development velocity
+- Modular codebase enables programmatic API usage and better testing
 
 **✅ PREVIOUS FIXES:**
 - Text formatting issues completely resolved
@@ -374,10 +374,10 @@ This is version 0.9.2 with major improvements and critical fixes. Here's what's 
 - **More languages**: Currently supports 4 languages, working on expanding
 
 **Latest stability improvements:**
-- Rock-solid cache system with zero corruption
+- Eliminated corruption by removing complex caching layer
 - Intelligent content formatting using AI
-- Better memory management for large content
-- Enhanced error recovery and validation
+- Better memory management for large content  
+- Enhanced error recovery and simplified validation
 
 I'm actively addressing these based on real user feedback.
 
@@ -504,7 +504,7 @@ It's not perfect and it won't solve everyone's problems. But if you're someone w
 
 ...then this might just transform your workflow like it did mine.
 
-The v0.9.2 release represents months of refinement based on real user feedback. The full content mode with AI formatting and rock-solid cache system have completely transformed how I consume information daily.
+The v0.10.2 release represents months of refinement based on real user feedback. The full content mode with AI formatting and corruption-free reliability have completely transformed how I consume information daily.
 
 **Try it for 30 seconds—it works immediately, no setup required.** Then decide if you want the full free setup with local AI.
 
@@ -548,6 +548,6 @@ glance --help
 
 ---
 
-**Current version: 0.9.2** | Released: January 2026 | **Full content mode with AI formatting & cache stability**
+**Current version: 0.10.2** | Released: January 2026 | **Modular architecture with corruption-free reliability**
 
 Have questions or found a bug? Open an issue on GitHub or reach out on Twitter.
