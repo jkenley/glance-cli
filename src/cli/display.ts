@@ -44,10 +44,8 @@ ${chalk.bold("Options:")}
   ${chalk.bold("Service Management:")}
   ${chalk.cyan("--check-services")}     Check available AI services and their status
   
-  ${chalk.bold("Export & Cache:")}
+  ${chalk.bold("Export:")}
   ${chalk.cyan("--export, -e <file>")} Export summary to file (.md, .json, .html, .txt)
-  ${chalk.cyan("--no-cache")}           Skip cache lookup for this request
-  ${chalk.cyan("--clear-cache")}        Clear the entire cache and exit
   
   ${chalk.bold("Advanced Options:")}
   ${chalk.cyan("--full-render")}        Enable JavaScript rendering (slower, for SPAs)
@@ -154,18 +152,12 @@ ${chalk.bold("AI Models:")}
   ${chalk.gray("# Prefer quality (paid) services")}
   glance https://example.com --prefer-quality
 
-${chalk.bold("Export & Cache:")}
+${chalk.bold("Export:")}
   ${chalk.gray("# Export to Markdown")}
   glance https://example.com --export summary.md
 
   ${chalk.gray("# Export to JSON")}
   glance https://example.com --export data.json
-
-  ${chalk.gray("# Skip cache")}
-  glance https://example.com --no-cache
-
-  ${chalk.gray("# Clear cache")}
-  glance --clear-cache
 
 ${chalk.bold("Advanced:")}
   ${chalk.gray("# JavaScript-heavy sites")}

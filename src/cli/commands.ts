@@ -10,7 +10,7 @@ import { extractCleanText, extractLinks, extractMetadata } from "../core/extract
 import { summarize, detectProvider } from "../core/summarizer";
 import { formatOutput } from "../core/formatter";
 import { takeScreenshot } from "../core/screenshot";
-import { getCacheKey, getCache, setCache, clearCache } from "../core/cache";
+import { getCacheKey, getCache, setCache, clearCache } from "../core/cache-stub";
 import { createVoiceSynthesizer } from "../core/voice";
 import { getDefaultModel, showCostWarning } from "../core/service-detector";
 import { sanitizeAIResponse } from "../core/text-cleaner";
@@ -35,8 +35,6 @@ export interface GlanceOptions {
   stream?: boolean;
   maxTokens?: number;
   export?: string;
-  noCache?: boolean;
-  clearCache?: boolean;
   screenshot?: string;
   fullRender?: boolean;
   metadata?: boolean;
@@ -66,27 +64,7 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
   const language = options.language || "en";
   const languageName = LANGUAGE_MAP[language] || "English";
 
-  // Cache handling
-  const cacheOptions = {
-    noCache: options.noCache,
-    ...options
-  };
-
-  const cacheKey = getCacheKey(url, cacheOptions);
-
-  if (!options.noCache) {
-    const cachedSummary = await getCache(cacheKey);
-    if (cachedSummary) {
-      logger.info("Using cached summary");
-
-      // Handle voice synthesis for cached content
-      if (options.read || options.audioOutput) {
-        await handleVoiceSynthesis(cachedSummary, { language, ...options });
-      }
-
-      return cachedSummary;
-    }
-  }
+  // Note: Caching temporarily disabled to eliminate corruption issues
 
   // Fetch the webpage
   const fetchSpinner = createSpinner("Fetching webpage...");
@@ -158,10 +136,7 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
   if (options.full) {
     const fullContent = await handleFullContent(cleanText, { language, ...options });
 
-    // Cache the full content
-    if (!options.noCache) {
-      await setCache(cacheKey, fullContent);
-    }
+    // Note: Caching disabled
 
     return fullContent;
   }
@@ -169,10 +144,7 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
   // Summarize content
   const summary = await summarizeContent(cleanText, url, { language, ...options });
 
-  // Cache the summary
-  if (!options.noCache) {
-    await setCache(cacheKey, summary);
-  }
+  // Note: Caching disabled
 
   // Handle voice synthesis
   if (options.read || options.audioOutput) {
@@ -423,21 +395,7 @@ async function exportContent(
   }
 }
 
-/**
- * Clear cache command
- */
-export async function clearCacheCommand(): Promise<void> {
-  const spinner = createSpinner("Clearing cache...");
-  spinner.start();
-
-  try {
-    await clearCache();
-    spinner.succeed("Cache cleared successfully");
-  } catch (error: any) {
-    spinner.fail("Failed to clear cache");
-    throw error;
-  }
-}
+// Cache functionality removed - see next-features/cache-system-plan.md
 
 /**
  * List voices command
