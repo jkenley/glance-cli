@@ -10,7 +10,7 @@ import { extractCleanText, extractLinks, extractMetadata } from "../core/extract
 import { summarize, detectProvider } from "../core/summarizer";
 import { formatOutput } from "../core/formatter";
 import { takeScreenshot } from "../core/screenshot";
-import { createVoiceSynthesizer } from "../core/voice";
+import { createVoiceSynthesizer, cleanTextForSpeech } from "../core/voice";
 import { getDefaultModel, showCostWarning } from "../core/service-detector";
 import { sanitizeAIResponse } from "../core/text-cleaner";
 import { LANGUAGE_MAP, CONFIG } from "./config";
@@ -141,14 +141,23 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
   }
 
   // Summarize content
-  const summary = await summarizeContent(cleanText, url, { language, ...options });
+  const { rawSummary, formattedSummary } = await summarizeContentWithRaw(cleanText, url, { language, ...options });
 
   // Note: Caching disabled
 
-  // Handle voice synthesis
+  // Display summary immediately if voice synthesis is requested
   if (options.read || options.audioOutput) {
-    await handleVoiceSynthesis(summary, { language, ...options });
+    // Show the full formatted summary first
+    console.log(formattedSummary);
+    console.log(""); // Add spacing
+    
+    // Then clean the raw text for speech and read it aloud
+    const cleanedSummary = cleanTextForSpeech(rawSummary);
+    await handleVoiceSynthesis(cleanedSummary, { language, ...options });
+    return formattedSummary;
   }
+
+  const summary = formattedSummary;
 
   const duration = Date.now() - startTime;
   logger.debug(`Total execution time: ${duration}ms`);
@@ -231,6 +240,78 @@ async function handleFullContent(
 }
 
 /**
+ * Summarize content using AI - returns both raw and formatted versions
+ */
+async function summarizeContentWithRaw(
+  content: string,
+  url: string,
+  options: GlanceOptions & { language: string }
+): Promise<{ rawSummary: string; formattedSummary: string }> {
+  const model = options.model || await getDefaultModel(undefined, !!options.preferQuality);
+
+  // Show cost warning if using premium model
+  if (!options.freeOnly) {
+    await showCostWarning(model);
+  }
+
+  const summarizeSpinner = options.stream
+    ? null
+    : createSpinner(`Processing with ${model}...`);
+
+  summarizeSpinner?.start();
+
+  try {
+    const rawSummary = await withRetry(
+      () => summarize(content, {
+        model,
+        tldr: options.tldr,
+        keyPoints: options.keyPoints,
+        eli5: options.eli5,
+        emoji: options.emoji,
+        language: options.language,
+        stream: options.stream,
+        maxTokens: options.maxTokens,
+        customQuestion: options.customQuestion,
+      }),
+      {
+        attempts: 2,
+        onRetry: (attempt) => {
+          if (summarizeSpinner) {
+            summarizeSpinner.text = `Processing with ${model}... (retry ${attempt})`;
+          }
+        }
+      }
+    );
+
+    summarizeSpinner?.succeed("Summary generated successfully");
+
+    // Clean and format the summary
+    const cleanSummary = sanitizeOutputForTerminal(sanitizeAIResponse(rawSummary));
+    const formattedSummary = formatOutput(cleanSummary, {
+      format: "terminal",
+      url: url,
+      customQuestion: options.customQuestion,
+    });
+
+    // Export if requested
+    if (options.export) {
+      await exportContent(formattedSummary, options.export, { url });
+    }
+
+    return { rawSummary: cleanSummary, formattedSummary };
+  } catch (error: any) {
+    summarizeSpinner?.fail("Failed to generate summary");
+    throw new GlanceError(
+      error.message,
+      ErrorCodes.SUMMARIZE_FAILED,
+      "Failed to generate summary. The AI service might be unavailable.",
+      true,
+      "Try a different model with --model or check your API keys"
+    );
+  }
+}
+
+/**
  * Summarize content using AI
  */
 async function summarizeContent(
@@ -306,17 +387,18 @@ async function summarizeContent(
  * Handle voice synthesis
  */
 async function handleVoiceSynthesis(
-  text: string,
+  cleanedText: string,
   options: GlanceOptions & { language: string }
 ): Promise<void> {
   try {
     const synthesizer = createVoiceSynthesizer();
 
     if (options.audioOutput) {
-      const audioSpinner = createSpinner(`Generating audio file: ${options.audioOutput}`);
+      const audioSpinner = createSpinner(`🎵 Generating audio file: ${options.audioOutput}`);
       audioSpinner.start();
 
-      const result = await synthesizer.synthesize(text, {
+      // Use the already cleaned text directly
+      const result = await synthesizer.synthesizeCleanedText(cleanedText, {
         voice: options.voice,
         language: options.language,
         outputFile: options.audioOutput,
@@ -326,9 +408,13 @@ async function handleVoiceSynthesis(
         throw new Error(result.error || 'Voice synthesis failed');
       }
 
-      audioSpinner.succeed(`Audio saved to ${options.audioOutput}`);
+      audioSpinner.succeed(`🎵 Audio saved to ${options.audioOutput}`);
     } else {
-      const result = await synthesizer.synthesize(text, {
+      const readSpinner = createSpinner(`🎤 Generating speech and preparing to read aloud...`);
+      readSpinner.start();
+
+      // Use the already cleaned text directly
+      const result = await synthesizer.synthesizeCleanedText(cleanedText, {
         voice: options.voice,
         language: options.language,
       });
@@ -336,6 +422,8 @@ async function handleVoiceSynthesis(
       if (!result.success) {
         throw new Error(result.error || 'Voice synthesis failed');
       }
+
+      readSpinner.succeed(`🎤 Reading aloud completed`);
     }
   } catch (error: any) {
     logger.error("Voice synthesis failed:", error);
