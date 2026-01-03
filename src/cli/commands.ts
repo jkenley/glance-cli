@@ -10,7 +10,6 @@ import { extractCleanText, extractLinks, extractMetadata } from "../core/extract
 import { summarize, detectProvider } from "../core/summarizer";
 import { formatOutput } from "../core/formatter";
 import { takeScreenshot } from "../core/screenshot";
-import { getCacheKey, getCache, setCache, clearCache } from "../core/cache-stub";
 import { createVoiceSynthesizer } from "../core/voice";
 import { getDefaultModel, showCostWarning } from "../core/service-detector";
 import { sanitizeAIResponse } from "../core/text-cleaner";
