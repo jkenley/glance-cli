@@ -13,7 +13,6 @@ import { showHelp, showVersion, formatErrorMessage } from "./display";
 import { validateURL, validateLanguage, validateMaxTokens } from "./validators";
 import {
   glance,
-  clearCacheCommand,
   listVoicesCommand,
   checkServicesCommand,
   listModelsCommand,
@@ -71,10 +70,8 @@ function parseCliArgs() {
         "free-only": { type: "boolean" },
         "prefer-quality": { type: "boolean" },
 
-        // Export & cache options
+        // Export options
         export: { type: "string", short: "e" },
-        "no-cache": { type: "boolean" },
-        "clear-cache": { type: "boolean" },
 
         // Advanced options
         "full-render": { type: "boolean" },
@@ -113,10 +110,6 @@ export async function runCli() {
     }
 
     // Handle special commands that don't require a URL
-    if (values["clear-cache"]) {
-      await clearCacheCommand();
-      process.exit(0);
-    }
 
     if (values["list-voices"]) {
       await listVoicesCommand();
@@ -189,7 +182,6 @@ export async function runCli() {
       stream: values.stream,
       maxTokens,
       export: values.export,
-      noCache: values["no-cache"],
       screenshot: values.screenshot,
       fullRender: values["full-render"],
       metadata: values.metadata,
