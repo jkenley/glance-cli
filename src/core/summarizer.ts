@@ -15,7 +15,7 @@
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import chalk from "chalk";
-import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts } from "./text-cleaner";
+import { nuclearCleanText, hasBinaryArtifacts } from "./text-cleaner";
 
 const LANGUAGE_MAP: Record<string, string> = {
     en: "English",
@@ -30,6 +30,8 @@ export interface SummarizeOptions {
     keyPoints?: boolean;
     eli5?: boolean;
     emoji?: boolean;
+    translate?: boolean;
+    format?: boolean;
     language: string;
     stream?: boolean;
     maxTokens?: number;
@@ -220,6 +222,75 @@ const PROMPT_TEMPLATES = {
     - Restating the question without answering it`,
 
     /**
+     * Translation - Direct content translation while preserving structure
+     */
+    translation: (langName: string) => `**Task:** Translate the entire provided content to ${langName} while preserving ALL original formatting and structure.
+
+    **Translation Requirements:**
+    - Translate ALL text content accurately and naturally
+    - Preserve EXACT paragraph breaks, line spacing, and structure
+    - Maintain the same number of paragraphs and sections
+    - Keep any bullet points, numbering, or formatting elements
+    - Translate naturally for native ${langName} speakers
+    - Do NOT add any explanatory text, headings, or additional structure
+    - Do NOT summarize, analyze, or modify the content
+
+    **Quality Standards:**
+    - Use natural, fluent ${langName} that sounds native
+    - Maintain the same tone and style as the original
+    - Preserve any technical terms that should remain in the original language
+    - Ensure cultural appropriateness for ${langName} speakers
+
+    **Output Format:**
+    - ONLY provide the translated text
+    - Match the exact structure of the original
+    - No additional commentary or explanation
+    - Start immediately with the translated content`,
+
+    /**
+     * Smart Formatting - Intelligent content structure enhancement
+     */
+    smartFormatting: () => `**Task:** Intelligently format the provided raw text content to enhance readability while preserving ALL original meaning and context.
+
+    **Formatting Requirements:**
+    - Preserve EVERY piece of content - do not remove, summarize, or omit anything
+    - Add appropriate paragraph breaks where natural pauses occur
+    - Identify and properly format titles, headings, and section breaks
+    - Separate distinct topics, dates, and metadata with appropriate spacing
+    - Format lists, navigation items, and links with proper structure
+    - Add line breaks between different content sections (bio, articles, projects, etc.)
+    - Preserve chronological order and relationships between content pieces
+
+    **Content Understanding:**
+    - Recognize blog post titles, dates, and reading times
+    - Identify navigation menus, contact links, and social media references
+    - Separate main content from metadata while keeping both
+    - Understand context clues like "Let's connect:", article listings, etc.
+    - Maintain the logical flow and hierarchy of information
+
+    **Formatting Guidelines:**
+    - Use double line breaks (\n\n) between major sections
+    - Use single line breaks (\n) within sections for readability
+    - Keep related items grouped together (e.g., article title with its metadata)
+    - Separate different types of content (bio, articles, links) clearly
+    - Preserve any dates, reading times, or other metadata near their related content
+
+    **Quality Standards:**
+    - The result should read naturally and be easy to scan
+    - Every original piece of information must be included
+    - Structure should enhance comprehension without changing meaning
+    - Format should work well for both reading and text-to-speech
+
+    **CRITICAL OUTPUT RULES:**
+    - Respond ONLY with the formatted content
+    - NO meta-commentary (don't say "Here is the formatted text..." or "Let me know...")
+    - NO preambles, introductions, or sign-offs
+    - NO explanations of your process
+    - Start directly with the formatted content
+    - End when content is complete
+    - Maintain all original words and phrases`,
+
+    /**
      * Final output instruction - Applies to all tasks
      */
     outputInstruction: () => `
@@ -248,7 +319,11 @@ function buildPrompt(text: string, options: SummarizeOptions): string {
     prompt += "\n\n---\n\n";
 
     // Task-specific instruction
-    if (options.customQuestion) {
+    if (options.translate) {
+        prompt += PROMPT_TEMPLATES.translation(langName || "English");
+    } else if (options.format) {
+        prompt += PROMPT_TEMPLATES.smartFormatting();
+    } else if (options.customQuestion) {
         prompt += PROMPT_TEMPLATES.customQuestion(options.customQuestion, options.emoji || false);
     } else if (options.tldr) {
         prompt += PROMPT_TEMPLATES.tldr(options.emoji || false);

@@ -276,14 +276,35 @@ function cleanText(text: string): string {
         .replace(/Ã\x87/g, 'Ç')     // C with cedilla
         // Remove remaining suspicious high-bit sequences that look like artifacts
         .replace(/[^\x00-\x7F\u00A0-\uFFFF]/g, '')
-        // Normalize whitespace (after encoding fixes)
-        .replace(/\s+/g, " ")
-        // Convert multiple newlines to double newline
-        .replace(/\n\s*\n\s*\n+/g, "\n\n")
+        // Normalize whitespace but preserve newlines
+        .replace(/[ \t\r\f]+/g, " ")  // Replace spaces, tabs, etc. but NOT newlines
+        .replace(/\n{3,}/g, "\n\n")    // Convert 3+ newlines to double newline
+        .replace(/ +\n/g, "\n")         // Remove trailing spaces before newlines
+        .replace(/\n +/g, "\n")         // Remove leading spaces after newlines
         // Remove leading/trailing whitespace per line
         .split("\n")
         .map(line => line.trim())
+        .filter((line, index, arr) => {
+            // Keep non-empty lines
+            if (line) return true;
+            // Keep ONE empty line between paragraphs (not multiple)
+            if (index > 0 && index < arr.length - 1) {
+                const prevNonEmpty = arr[index - 1];
+                const nextNonEmpty = arr[index + 1];
+                return prevNonEmpty && nextNonEmpty;
+            }
+            return false;
+        })
         .join("\n")
+        // Break up very long paragraphs at sentence boundaries for better readability
+        .replace(/(\. +)(?=[A-Z])/g, '.\n\n')  // Add line break after sentences starting with capital letters
+        .replace(/(\! +)(?=[A-Z])/g, '!\n\n')  // Same for exclamation marks
+        .replace(/(\? +)(?=[A-Z])/g, '?\n\n')  // Same for question marks
+        // Clean up any excessive newlines this might have created
+        .replace(/\n{3,}/g, "\n\n")
+        // Remove excessive leading/trailing newlines
+        .replace(/^\n+/, '')  // Remove all leading newlines
+        .replace(/\n+$/, '')  // Remove all trailing newlines
         // Final trim
         .trim();
 }
@@ -295,15 +316,42 @@ function extractFormattedText($: CheerioAPI, element: Cheerio<Element>): string 
     // Clone to avoid modifying original
     const clone = element.clone();
 
-    // Add newlines around block elements
-    clone.find("p, div, h1, h2, h3, h4, h5, h6, li, blockquote, pre").each((_, el) => {
-        $(el).before("\n");
-        $(el).after("\n");
+    // Add proper spacing around block elements ONLY if they have content
+    // Headers get extra space
+    clone.find("h1, h2, h3, h4, h5, h6").each((_, el) => {
+        const text = $(el).text().trim();
+        if (text) {
+            $(el).before("\n\n");
+            $(el).after("\n\n");
+        }
+    });
+    
+    // Paragraphs get double newlines for clear separation
+    clone.find("p").each((_, el) => {
+        const text = $(el).text().trim();
+        if (text) {
+            $(el).before("\n\n");
+            $(el).after("\n\n");
+        }
+    });
+    
+    // Other block elements get single newlines
+    clone.find("div, blockquote, pre, ul, ol, dl").each((_, el) => {
+        const text = $(el).text().trim();
+        if (text) {
+            $(el).before("\n");
+            $(el).after("\n");
+        }
     });
 
-    // Add newlines for list items
+    // Format list items with proper spacing and bullets
     clone.find("li").each((_, el) => {
-        $(el).prepend("• ");
+        const text = $(el).text().trim();
+        if (text) {
+            $(el).prepend("• ");
+            $(el).before("\n");
+            $(el).after("\n");
+        }
     });
 
     // Get text and clean

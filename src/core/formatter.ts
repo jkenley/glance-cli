@@ -13,7 +13,7 @@
  */
 
 import chalk from "chalk";
-import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts } from "./text-cleaner";
+import { nuclearCleanText, hasBinaryArtifacts } from "./text-cleaner";
 
 // === Types ===
 
@@ -56,6 +56,8 @@ export interface FormatOptions {
     compact?: boolean;
     /** Custom title override */
     customTitle?: string;
+    /** Flag indicating this is full content, not a summary */
+    isFullContent?: boolean;
 }
 
 export interface FormattedOutput {
@@ -234,9 +236,14 @@ function formatTerminal(summary: string, options: Required<FormatOptions>): stri
     parts.push(""); // Blank line
 
     // Main content
-    const contentTitle = options.customQuestion ? "Answer" : (options.customTitle || "Summary");
+    const contentTitle = options.customQuestion ? "Answer" : 
+                        options.isFullContent ? "Full Content" :
+                        (options.customTitle || "Summary");
+    const contentEmoji = options.customQuestion ? EMOJI.answer : 
+                        options.isFullContent ? "📖" : 
+                        EMOJI.summary;
     parts.push(
-        chalk.bold.magenta(`${options.customQuestion ? EMOJI.answer : EMOJI.summary} ${contentTitle}:`)
+        chalk.bold.magenta(`${contentEmoji} ${contentTitle}:`)
     );
     parts.push("");
     parts.push(chalk.white(summary));
@@ -343,6 +350,8 @@ function formatJSON(summary: string, options: Required<FormatOptions>): string {
     if (options.customQuestion) {
         output.question = options.customQuestion;
         output.type = "answer";
+    } else if (options.isFullContent) {
+        output.type = "full_content";
     } else {
         output.type = "summary";
     }
@@ -609,6 +618,7 @@ export function formatOutput(summary: string, options: FormatOptions): string {
         fromCache: options.fromCache || false,
         compact: options.compact ?? false,
         customTitle: options.customTitle || "",
+        isFullContent: options.isFullContent ?? false,
     };
 
     // Format based on type

@@ -5,6 +5,97 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-01-02
+
+### 🧾 MAJOR: AI-Powered Smart Formatting for Full Content
+- **Revolutionary Feature**: `--full` mode now uses AI to intelligently format messy content!
+  - Automatically organizes blog posts, articles, and complex layouts
+  - Preserves ALL original content while making it beautifully readable
+  - Perfect structure for both reading and voice synthesis
+  - Works with any website layout - no more CSS selector limitations!
+
+### Enhanced
+- **Smart Content Recognition**: AI identifies titles, dates, reading times, social links
+- **Intelligent Spacing**: Proper paragraph breaks and section separation
+- **Article Organization**: Blog posts formatted with metadata (dates, reading times)
+- **Link Structure**: Navigation and social media links properly organized
+- **Fallback System**: Smart formatting with graceful fallback to raw content
+
+### Performance
+- **English Content**: `🧾 Applying smart formatting...` (~3-6 seconds)
+- **Multilingual**: Combined translation + formatting for non-English languages
+- **Zero Content Loss**: Every piece of original information preserved
+
+### Examples
+```bash
+# Before: messy wall of text
+# After: beautifully structured, readable content
+glance https://complex-blog.com --full --read
+
+# Works perfectly with voice synthesis
+glance https://personal-website.com --full --voice nova --read
+
+# Multilingual with smart formatting
+glance https://messy-site.com --full -l fr --read
+```
+
+### Technical Details
+- Added `format` option to SummarizeOptions interface
+- Created intelligent formatting prompts with content understanding
+- Enhanced CLI to apply smart formatting for English content
+- Improved error handling with multiple fallback levels
+
+## [0.9.0] - 2026-01-02
+
+### 🌍 MAJOR: Multilingual Full Content Support
+- **Breakthrough Feature**: `--full` mode now supports translation to any language!
+  - Read entire English articles in French: `glance https://blog.com/post --full -l fr --read`
+  - Read French content in English: `glance https://lemonde.fr/article --full -l en --read`
+  - Perfect for language learning, accessibility, and international content consumption
+  - Preserves original formatting and structure while translating
+
+### Added
+- **Translation Engine**: Dedicated translation prompts for accurate, structure-preserving translations
+- **Language Detection**: Automatic translation when non-English language specified with `--full`
+- **Voice Integration**: Translated full content works seamlessly with voice synthesis
+- **Smart Fallback**: Falls back to original content if translation fails
+
+### Improved
+- **Text Formatting**: Enhanced paragraph structure preservation in full content mode
+- **Performance**: Optimized content extraction to reduce excessive newlines
+- **User Experience**: Clear progress indicators ("🌍 Translating full content...")
+
+### Examples
+```bash
+# Translate Sam Altman's blog to French and listen
+glance https://blog.samaltman.com/post --full -l fr --read
+
+# Read Spanish news in English with voice
+glance https://elpais.com/news --full -l en --voice nova --read
+
+# Export French content as English markdown
+glance https://lemonde.fr/tech --full -l en --export article.md
+```
+
+## [0.8.9] - 2026-01-02
+
+### Added
+- **Full Content Mode**: New `--full` flag to read entire articles without summarization
+  - Perfect for when you want to listen to complete blog posts or documentation
+  - Works seamlessly with voice synthesis (`--read`) and audio export (`--audio-output`)
+  - Maintains all formatting and structure from original content
+  - Example: `glance https://blog.com/article --full --read`
+
+### Improved
+- **Content Display**: Shows "📖 Full Content" label when using --full mode
+- **Voice Integration**: Full content can be read aloud or saved as audio files
+- **Export Options**: Full content can be exported to markdown, JSON, or other formats
+
+### Technical Details
+- Added isFullContent flag to formatter options
+- Enhanced CLI to skip AI processing when --full is specified
+- Optimized performance for full content delivery
+
 ## [0.8.8] - 2026-01-02
 
 ### Fixed

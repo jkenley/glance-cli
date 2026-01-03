@@ -14,7 +14,7 @@ interface VoiceOptions {
     similarityBoost?: number;
     style?: number;
     speakerBoost?: boolean;
-    language?: string; // Language code for auto voice selection
+    language?: string;
 }
 
 interface VoiceResult {

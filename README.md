@@ -5,9 +5,10 @@
 - **100% FREE by default** – Uses local Ollama (no API keys needed!)
 - **Privacy-first** – Your data stays on your machine
 - **Lightning fast** – Built with Bun and TypeScript
+- **AI-powered formatting** – Intelligent content structure for `--full` mode
 - **Production-ready** – Smart caching, error handling, and retry logic
 
-Turn any webpage into terminal-friendly insights — no browser needed.
+Turn any webpage into beautifully formatted, terminal-friendly insights — no browser needed.
 
 [![npm version](https://badge.fury.io/js/glance-cli.svg)](https://www.npmjs.com/package/glance-cli)
 [![Downloads](https://img.shields.io/npm/dm/glance-cli.svg)](https://www.npmjs.com/package/glance-cli)
@@ -71,6 +72,14 @@ glance https://complex-topic.com --eli5
 
 # Ask specific questions
 glance https://nextjs.org/docs --ask "What's the App Router?"
+
+# Read FULL content (no summarization)
+glance https://blog.samaltman.com/article --full
+glance https://important-article.com --full --read  # Listen to entire article
+
+# Read FULL content in different languages
+glance https://blog.samaltman.com/article --full -l fr  # Translate to French
+glance https://lemonde.fr/article --full -l en --read   # French article in English with voice
 ```
 
 ### AI Models
@@ -223,6 +232,39 @@ done
 glance https://api-docs.com --ask "How do I authenticate?" --format plain
 ```
 
+### 6. Listen to Full Articles
+```bash
+# Read entire blog posts or articles
+glance https://blog.example.com/long-post --full --read
+
+# Save full content as audio
+glance https://important-article.com --full --audio-output article.mp3
+
+# Export full content to markdown
+glance https://documentation.com/guide --full --export guide.md
+```
+
+### 7. Multilingual Full Content
+```bash
+# Translate entire articles to other languages
+glance https://blog.samaltman.com/post --full -l fr --read  # English to French
+glance https://lemonde.fr/article --full -l en --read       # French to English
+glance https://elpais.com/news --full -l en --voice nova --read  # Spanish to English
+
+# Perfect for language learning or accessibility
+glance https://technical-docs.com --full -l es --audio-output spanish-docs.mp3
+```
+
+### 8. Smart Content Formatting
+```bash
+# AI automatically formats messy websites for better readability
+glance https://personal-blog.com --full  # Cleans up layout
+glance https://complex-site.com --full --read  # Perfect for voice
+
+# Works great for sites with poor formatting
+glance https://old-website.com --full --export clean-article.md
+```
+
 ---
 
 ## 🎤 Voice & Language Support
@@ -264,6 +306,8 @@ glance <url> --tldr           # One sentence
 glance <url> --key-points     # Bullet points
 glance <url> --eli5           # Simple explanation
 glance <url> --ask "question" # Custom Q&A
+glance <url> --full           # Full content (no summary)
+glance <url> --full -l fr     # Full content translated to French
 
 # AI models
 --model <name>                # llama3, gpt-4o-mini, gemini-2.0-flash-exp
@@ -394,6 +438,17 @@ glance https://article.com --tldr --audio-output commute.mp3
 **5. Use streaming for long content:**
 ```bash
 glance https://long-article.com --stream
+```
+
+**6. Read full articles without summarization:**
+```bash
+glance https://blog-post.com --full --read
+```
+
+**7. AI-powered smart formatting:**
+```bash
+# Automatically formats messy content for readability
+glance https://complex-site.com --full  # AI fixes formatting
 ```
 
 ---

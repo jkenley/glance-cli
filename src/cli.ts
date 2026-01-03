@@ -24,7 +24,7 @@
 import { parseArgs } from "node:util";
 import * as compat from './core/compat';
 import chalk from "chalk";
-import ora from "ora";
+import ora, { type Ora } from "ora";
 import path from "node:path";
 
 import { fetchPage } from "./core/fetcher";
@@ -38,9 +38,17 @@ import { createVoiceSynthesizer } from "./core/voice";
 import { detectServices, getDefaultModel, showCostWarning, shouldUseFreeOnly } from "./core/service-detector";
 import { nuclearCleanText, sanitizeAIResponse, hasBinaryArtifacts, emergencyTextClean } from "./core/text-cleaner";
 
+// === Language Map ===
+const LANGUAGE_MAP: Record<string, string> = {
+    en: "English",
+    fr: "French",
+    es: "Spanish",
+    ht: "Haitian Creole",
+} as const;
+
 // === Configuration ===
 const CONFIG = {
-  VERSION: "0.8.8",
+  VERSION: "0.9.1",
   MAX_CONTENT_SIZE: 10 * 1024 * 1024, // 10MB
   FETCH_TIMEOUT: 30000, // 30s
   RETRY_ATTEMPTS: 3,
@@ -378,6 +386,7 @@ const { values, positionals } = parseArgs({
   options: {
     tldr: { type: "boolean", short: "t" },
     "key-points": { type: "boolean", short: "k" },
+    full: { type: "boolean", short: "f" },
     model: { type: "string", short: "m" },
     language: { type: "string", short: "l", default: "en" },
     "max-tokens": { type: "string" },
@@ -422,6 +431,7 @@ ${chalk.bold("Usage:")} glance <url> [options]
 
 ${chalk.bold("Core:")}
   -t, --tldr                One-line TL;DR
+  -f, --full                Read full content (no summarization)
   -k, --key-points          Bullet points (6-10 key insights)
       --eli5                Explain like I'm 5
 
@@ -812,6 +822,182 @@ if (values["list-models"]) {
         console.log(chalk.dim(`\n... (${cleanText.length - 3000} more characters)`));
       }
       console.log(chalk.dim(`\nTotal length: ${cleanText.length} characters`));
+      return;
+    }
+
+    // === Full Content Mode (AI for Smart Formatting & Translation) ===
+    if (values.full) {
+      let finalContent = cleanText;
+      let fullModeSpinner: Ora;
+      
+      // Check if translation is needed (non-English language)
+      const needsTranslation = values.language && values.language !== "en";
+      
+      if (needsTranslation) {
+        // Use AI for translation while preserving structure
+        fullModeSpinner = ora(chalk.cyan("🌍 Translating and formatting full content...")).start();
+        
+        try {
+          finalContent = await withRetry(
+            () => summarize(cleanText, {
+              model: modelToUse,
+              tldr: false,
+              keyPoints: false,
+              eli5: false,
+              emoji: false,
+              translate: true,
+              format: false, // Translation handles formatting
+              language: values.language!,
+              stream: values.stream,
+              maxTokens: (maxTokens || 1000) * 2, // More tokens for full content
+            }),
+            {
+              attempts: 2,
+              onRetry: (attempt, err) => {
+                fullModeSpinner.text = chalk.yellow(`Retry ${attempt}/2: ${err.message}`);
+              },
+            }
+          );
+          
+          fullModeSpinner.succeed(chalk.green("Full content translated and formatted"));
+        } catch (err: any) {
+          fullModeSpinner.fail(chalk.red("Translation failed, applying smart formatting"));
+          logger.warn("Translation error:", err.message);
+          
+          // Fallback to smart formatting only
+          try {
+            fullModeSpinner = ora(chalk.cyan("🧾 Applying smart formatting...")).start();
+            finalContent = await withRetry(
+              () => summarize(cleanText, {
+                model: modelToUse,
+                tldr: false,
+                keyPoints: false,
+                eli5: false,
+                emoji: false,
+                translate: false,
+                format: true,
+                language: "en",
+                stream: values.stream,
+                maxTokens: (maxTokens || 1000) * 2,
+              }),
+              { attempts: 2 }
+            );
+            fullModeSpinner.succeed(chalk.green("Smart formatting applied"));
+          } catch {
+            finalContent = cleanText; // Final fallback to raw content
+            fullModeSpinner.fail(chalk.red("Formatting failed, showing raw content"));
+          }
+        }
+      } else {
+        // English content - use AI smart formatting
+        fullModeSpinner = ora(chalk.cyan("🧾 Applying smart formatting...")).start();
+        
+        try {
+          finalContent = await withRetry(
+            () => summarize(cleanText, {
+              model: modelToUse,
+              tldr: false,
+              keyPoints: false,
+              eli5: false,
+              emoji: false,
+              translate: false,
+              format: true,
+              language: "en",
+              stream: values.stream,
+              maxTokens: (maxTokens || 1000) * 2, // More tokens for full content
+            }),
+            {
+              attempts: 2,
+              onRetry: (attempt, err) => {
+                fullModeSpinner.text = chalk.yellow(`Retry ${attempt}/2: ${err.message}`);
+              },
+            }
+          );
+          
+          fullModeSpinner.succeed(chalk.green("Smart formatting applied"));
+        } catch (err: any) {
+          fullModeSpinner.fail(chalk.red("Smart formatting failed, showing raw content"));
+          logger.warn("Formatting error:", err.message);
+          finalContent = cleanText; // Fallback to original content
+        }
+      }
+      
+      // Format the final content
+      const output = formatOutput(finalContent, {
+        markdown: values.markdown,
+        json: values.json,
+        metadata,
+        url,
+        isFullContent: true,
+      });
+
+      // Handle export for full content
+      if (values.export) {
+        let content = output;
+        const ext = path.extname(values.export).toLowerCase();
+        // Auto-format based on extension
+        if (ext === ".json" && !values.json) {
+          content = formatOutput(cleanText, { json: true, metadata, url, isFullContent: true });
+        } else if (ext === ".md" && !values.markdown) {
+          content = formatOutput(cleanText, { markdown: true, metadata, url, isFullContent: true });
+        }
+        try {
+          await compat.writeFile(values.export, content);
+          const absolutePath = path.resolve(values.export);
+          logger.success(`Saved → ${absolutePath}`);
+        } catch (err: any) {
+          throw new GlanceError(
+            err.message,
+            "EXPORT_ERROR",
+            "Failed to save file",
+            false,
+            `Check permissions for ${values.export}`
+          );
+        }
+      }
+
+      // Display output
+      const finalOutput = sanitizeOutputForTerminal(output);
+      console.log("\n" + finalOutput + "\n");
+
+      // Handle voice synthesis for full content
+      if (values.read || values.speak || values["audio-output"]) {
+        const voiceSpinner = ora(chalk.blue("Generating audio for full content...")).start();
+        
+        try {
+          const voiceSynthesizer = createVoiceSynthesizer();
+          
+          // Use the final content (translated if needed) for speech
+          const textToSpeak = finalContent;
+          
+          const voiceResult = await voiceSynthesizer.synthesize(textToSpeak, {
+            voice: values.voice as string | undefined,
+            outputFile: values["audio-output"] as string | undefined,
+            apiKey: process.env.ELEVENLABS_API_KEY,
+            language: values.language!, // Pass language for intelligent voice selection
+          });
+          
+          if (voiceResult.success) {
+            if (values["audio-output"]) {
+              voiceSpinner.succeed(chalk.green(`Audio saved → ${values["audio-output"]}`));
+            } else {
+              voiceSpinner.succeed(chalk.green("Playing audio..."));
+            }
+          } else {
+            voiceSpinner.fail(chalk.red("Voice synthesis failed"));
+            if (voiceResult.error) {
+              console.error(chalk.yellow(`Error: ${voiceResult.error}`));
+            }
+          }
+        } catch (err: any) {
+          voiceSpinner.fail(chalk.red("Voice synthesis error"));
+          logger.error("Voice error:", err.message);
+        }
+      }
+
+      // Show performance summary
+      const totalTime = perf.getDuration();
+      console.log(chalk.dim(`\n⏱️  Total: ${(totalTime / 1000).toFixed(2)}s\n`));
       return;
     }
 
