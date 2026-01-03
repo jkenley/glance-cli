@@ -1,6 +1,6 @@
 {
     "name": "glance-cli",
-    "version": "0.10.5",
+    "version": "0.10.6",
     "description": "AI-powered web reader for your terminal – Fetch, extract, and summarize webpages with local or cloud AI",
     "keywords": [
         "cli",
@@ -35,7 +35,8 @@
         "url": "https://github.com/jkenley/glance-cli/issues"
     },
     "bin": {
-        "glance": "./dist/cli.js"
+        "glance": "./dist/cli.js",
+        "web-glance": "./dist/cli.js"
     },
     "type": "module",
     "exports": {
