@@ -5,6 +5,28 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-01-02
+
+### 🔧 Fixed: Cache Corruption Issues
+- **Critical Fix**: Resolved cache corruption causing garbled/binary artifacts in cached content
+  - Fixed double nuclear cleaning that was corrupting cached data on read operations
+  - Implemented proper UTF-8 encoding with error handling using TextDecoder
+  - Reduced overly aggressive text sanitization that destroyed content structure
+  - Added validation to prevent empty/corrupted content from being cached
+  - Enhanced error recovery for corrupted cache entries with automatic cleanup
+
+### Technical Details
+- Modified cache system to only apply sanitization on write, not read operations
+- Added proper encoding detection and UTF-8 conversion with fallback handling
+- Improved binary artifact detection to avoid false positives from normal content
+- Enhanced cache validation with better error messages and recovery mechanisms
+- Fixed memory corruption issues that were causing truncated Ollama responses
+
+### Performance Improvements
+- Faster cache operations with reduced processing overhead
+- Better memory management for large cached content
+- Improved reliability of cache reads across all AI providers
+
 ## [0.9.1] - 2026-01-02
 
 ### 🧾 MAJOR: AI-Powered Smart Formatting for Full Content
