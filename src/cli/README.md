@@ -80,7 +80,7 @@ Easy to add new features:
 ### `commands.ts` - Command Handlers
 Exportable functions for each CLI command:
 - `glance()` - Main summarization command
-- `clearCacheCommand()` - Clear cache
+- Cache system temporarily disabled (see next-features/)
 - `listVoicesCommand()` - List available voices
 - `checkServicesCommand()` - Check service availability
 - `listModelsCommand()` - List Ollama models
@@ -161,7 +161,7 @@ async function main() {
   const summary = await glance("https://example.com", {
     tldr: true,
     language: "en",
-    noCache: false
+    // caching temporarily disabled
   });
   
   console.log(summary);

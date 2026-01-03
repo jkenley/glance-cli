@@ -5,27 +5,53 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-01-03
+
+### 🗑️ Removed: Cache System (Temporary)
+- **Major Change**: Completely removed caching functionality to eliminate corruption issues
+- All cache-related CLI options removed (--no-cache, --clear-cache, --cache-stats)
+- Fresh content generation on every request - no caching artifacts
+- Implementation preserved in next-features/ for future robust restoration
+
+### ✅ Benefits
+- Zero cache corruption - no binary artifacts in summaries
+- Predictable behavior - same input gives consistent output
+- Simpler debugging - fewer moving parts during development
+- User confidence - reliable, clean results every time
+
+### 🔧 Technical Changes
+- Replaced cache system with stub functions for API compatibility
+- Removed cache references from help text and documentation
+- Simplified command flow without cache complexity
+- All existing functionality works without caching dependency
+
+## [0.10.1] - 2026-01-03
+
+### 🏗️ Major: CLI Modularization
+- Complete restructure from 1219-line monolith into 9 focused modules
+- Exportable components for programmatic usage (see examples/)
+- Production-ready error handling with custom GlanceError classes
+- Zero TypeScript errors with comprehensive type safety
+
+### 🔧 Critical Fixes
+- Fixed service detection to properly recognize Ollama availability
+- Fixed language parameter defaulting to undefined (was causing failures)
+- Resolved summarization failures after modularization
+- All AI models (Llama, OpenAI, Gemini) working correctly
+
+### 📦 Programmatic API
+- All CLI components now exportable and reusable
+- Full TypeScript support with proper interfaces
+- Package exports configured for easy imports
+- Example usage provided in examples/ directory
+
 ## [0.9.2] - 2026-01-02
 
-### 🔧 Fixed: Cache Corruption Issues
-- **Critical Fix**: Resolved cache corruption causing garbled/binary artifacts in cached content
-  - Fixed double nuclear cleaning that was corrupting cached data on read operations
-  - Implemented proper UTF-8 encoding with error handling using TextDecoder
-  - Reduced overly aggressive text sanitization that destroyed content structure
-  - Added validation to prevent empty/corrupted content from being cached
-  - Enhanced error recovery for corrupted cache entries with automatic cleanup
-
-### Technical Details
-- Modified cache system to only apply sanitization on write, not read operations
-- Added proper encoding detection and UTF-8 conversion with fallback handling
-- Improved binary artifact detection to avoid false positives from normal content
-- Enhanced cache validation with better error messages and recovery mechanisms
-- Fixed memory corruption issues that were causing truncated Ollama responses
-
-### Performance Improvements
-- Faster cache operations with reduced processing overhead
-- Better memory management for large cached content
-- Improved reliability of cache reads across all AI providers
+### 🔧 Fixed: Cache Corruption Issues (Later Removed)
+- **Note**: Cache system was later removed in v0.10.2 due to persistent corruption
+- Attempted fixes included UTF-8 encoding improvements and validation
+- Issues with binary artifacts persisted despite multiple fix attempts
+- Full cache removal provided permanent solution to corruption problems
 
 ## [0.9.1] - 2026-01-02
 

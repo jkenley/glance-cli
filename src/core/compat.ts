@@ -3,7 +3,6 @@
  */
 
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { execSync } from 'child_process';
 
 // Runtime detection
@@ -28,7 +27,7 @@ export async function writeFile(filePath: string, content: string | Buffer): Pro
 export async function readFile(filePath: string): Promise<string> {
   if (isBun) {
     const file = Bun.file(filePath);
-    return file.exists() ? file.text() : '';
+    return (await file.exists()) ? await file.text() : '';
   } else {
     try {
       return await fs.readFile(filePath, 'utf-8');
