@@ -43,6 +43,10 @@ ${chalk.bold("Options:")}
   ${chalk.bold("Service Management:")}
   ${chalk.cyan("--check-services")}     Check available AI services and their status
   
+  ${chalk.bold("Output Format:")}
+  ${chalk.cyan("--format <type>")}      Output format: md, json, plain (default: terminal)
+  ${chalk.cyan("--output, -o <file>")} Save to file (auto-detects format from extension)
+  
   ${chalk.bold("Advanced Options:")}
   ${chalk.cyan("--full-render")}        Enable JavaScript rendering (slower, for SPAs)
   ${chalk.cyan("--screenshot <file>")} Capture a screenshot of the page

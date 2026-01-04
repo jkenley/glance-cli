@@ -69,6 +69,9 @@ function parseCliArgs() {
         "free-only": { type: "boolean" },
         "prefer-quality": { type: "boolean" },
 
+        // Format & Output options
+        format: { type: "string" },
+        output: { type: "string", short: "o" },
 
         // Advanced options
         "full-render": { type: "boolean" },
@@ -177,6 +180,8 @@ export async function runCli() {
       customQuestion: values.ask,
       stream: values.stream,
       maxTokens,
+      format: values.format,
+      output: values.output,
       screenshot: values.screenshot,
       fullRender: values["full-render"],
       metadata: values.metadata,

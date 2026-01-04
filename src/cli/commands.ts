@@ -33,7 +33,8 @@ export interface GlanceOptions {
   customQuestion?: string;
   stream?: boolean;
   maxTokens?: number;
-  export?: string;
+  format?: string;
+  output?: string;
   screenshot?: string;
   fullRender?: boolean;
   metadata?: boolean;
@@ -180,10 +181,69 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
 
   const summary = formattedSummary;
 
+  // Save to file if output specified
+  if (options.output) {
+    await saveToFile(summary, options.output);
+  }
+
   const duration = Date.now() - startTime;
   logger.debug(`Total execution time: ${duration}ms`);
 
   return summary;
+}
+
+/**
+ * Determine output format from user options
+ * Priority: 1) --format flag, 2) file extension, 3) terminal default
+ */
+function getOutputFormat(options: GlanceOptions): "terminal" | "markdown" | "json" | "plain" {
+  // 1. If format is explicitly specified, use it
+  if (options.format) {
+    const formatMap: Record<string, string> = {
+      'md': 'markdown',
+      'json': 'json', 
+      'plain': 'plain',
+      'markdown': 'markdown',
+      'terminal': 'terminal'
+    };
+    return (formatMap[options.format.toLowerCase()] || "terminal") as "terminal" | "markdown" | "json" | "plain";
+  }
+  
+  // 2. If output file is specified, auto-detect from extension
+  if (options.output) {
+    const extension = getFileExtension(options.output).toLowerCase();
+    const extensionMap: Record<string, string> = {
+      'md': 'markdown',
+      'markdown': 'markdown',
+      'json': 'json',
+      'txt': 'plain',
+      'text': 'plain'
+    };
+    const detectedFormat = extensionMap[extension];
+    if (detectedFormat) {
+      return detectedFormat as "terminal" | "markdown" | "json" | "plain";
+    }
+  }
+  
+  // 3. Default to terminal if no output file or unrecognized extension
+  return "terminal";
+}
+
+/**
+ * Save content to file
+ */
+async function saveToFile(content: string, filename: string): Promise<void> {
+  try {
+    await writeFile(filename, content, "utf-8");
+    logger.info(`Content saved to ${filename}`);
+  } catch (error: any) {
+    throw new GlanceError(
+      error.message,
+      ErrorCodes.EXPORT_FAILED,
+      `Failed to save content to ${filename}`,
+      false
+    );
+  }
 }
 
 /**
@@ -247,14 +307,14 @@ async function handleFullContent(
 
   // Format the output
   const formattedOutput = formatOutput(finalContent, {
-    format: "terminal",
+    format: getOutputFormat(options),
     url: "full-content",
     isFullContent: true,
   });
 
-  // Export if requested
-  if (options.export) {
-    await exportContent(formattedOutput, options.export, { isFullContent: true });
+  // Save to file if output specified
+  if (options.output) {
+    await saveToFile(formattedOutput, options.output);
   }
 
   return formattedOutput;
@@ -308,15 +368,11 @@ async function summarizeContentWithRaw(
     // Clean and format the summary
     const cleanSummary = sanitizeOutputForTerminal(sanitizeAIResponse(rawSummary));
     const formattedSummary = formatOutput(cleanSummary, {
-      format: "terminal",
+      format: getOutputFormat(options),
       url: url,
       customQuestion: options.customQuestion,
     });
 
-    // Export if requested
-    if (options.export) {
-      await exportContent(formattedSummary, options.export, { url });
-    }
 
     return { rawSummary: cleanSummary, formattedSummary };
   } catch (error: any) {
@@ -379,15 +435,11 @@ async function summarizeContent(
     // Clean and format the summary
     const cleanSummary = sanitizeOutputForTerminal(sanitizeAIResponse(summary));
     const formattedSummary = formatOutput(cleanSummary, {
-      format: "terminal",
+      format: getOutputFormat(options),
       url: url,
       customQuestion: options.customQuestion,
     });
 
-    // Export if requested
-    if (options.export) {
-      await exportContent(formattedSummary, options.export, { url });
-    }
 
     return formattedSummary;
   } catch (error: any) {

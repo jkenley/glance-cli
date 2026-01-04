@@ -3,10 +3,11 @@
 **AI-powered web reader for your terminal** – Fetch any webpage, extract clean content, get instant AI summaries, and listen with natural voice synthesis.
 
 - **100% FREE by default** – Uses local Ollama (no API keys needed!)
-- **Privacy-first** – Your data stays on your machine
+- **Auto language detection** – Detects English, French, Spanish, Haitian Creole
+- **Privacy-first** – Your data stays on your machine  
 - **Voice-enabled** – Read articles aloud with multilingual support
+- **File output** – Save summaries as markdown, JSON, or plain text
 - **Lightning fast** – Built with Bun and TypeScript
-- **Production-ready** – Smart caching, error handling, retry logic
 
 Turn any webpage into terminal-friendly insights with AI summaries or full content — read it, listen to it, or export it.
 
@@ -23,9 +24,9 @@ Turn any webpage into terminal-friendly insights with AI summaries or full conte
 bun install -g glance-cli  # Or: npm install -g glance-cli
 
 # Use immediately
-glance https://www.ayiti.ai
-glance https://www.ayiti.ai --read              # Listen to it
-glance https://www.ayiti.ai --tldr              # Quick summary
+glance https://www.ayiti.ai                     # AI summary
+glance https://www.ayiti.ai/fr --read           # Auto-detects French + voice  
+glance https://news.com --output summary.md     # Save as markdown
 ```
 
 **For 100% free local AI:**
@@ -68,10 +69,13 @@ glance --list-voices                          # See all voices
 
 ### 🌍 **Multi-Language Support**
 ```bash
-glance <url> --full -l fr                     # Translate to French
-glance <url> --full -l es --voice isabella --read   # Spanish + voice
+glance https://lemonde.fr --tldr              # Auto-detects French from URL
+glance https://www.ayiti.ai/fr --read         # Auto-detects French + voice
+glance <url> --full -l es --voice isabella --read   # Override to Spanish + voice
 
+# Auto-detection: Detects language from URL patterns and content
 # Supported: en, fr, es, ht (Haitian Creole)
+# Override: Use --language flag to force specific language
 ```
 
 ### 🤖 **AI Models**
@@ -103,12 +107,20 @@ glance https://nextjs.org/docs --ask "What's the App Router?"
 # Study while coding
 glance https://tutorial.com --full --read
 
+# Auto language detection  
+glance https://www.ayiti.ai/fr --tldr              # Automatically detects French
+
 # Multilingual learning
-glance https://lemonde.fr --full -l en --read
+glance https://lemonde.fr --full -l en --read      # French → English + voice
+
+# Save in different formats
+glance https://news.com --output summary.md        # Markdown format
+glance https://api-docs.com --output data.json     # JSON format
+glance https://article.com --format plain --output content.txt  # Plain text
 
 # Batch processing
 for url in $(cat urls.txt); do
-  glance "$url" --tldr >> digest.md
+  glance "$url" --tldr --output "$(basename $url).md"
 done
 ```
 
@@ -143,11 +155,11 @@ done
 --prefer-quality              # Use premium if available
 ```
 
-### **Output & Export**
+### **Output & File Saving**
 ```bash
--o, --export <file>           # Save to file
+--format <type>               # Output format: md, json, plain (default: terminal)
+--output, -o <file>           # Save to file (auto-detects format from extension)
 --stream                      # Live streaming output
---markdown, --json            # Format shortcuts
 ```
 
 ### **Advanced**
@@ -182,16 +194,19 @@ export OLLAMA_ENDPOINT=http://localhost:11434
 ## 🎓 Pro Tips
 
 ```bash
-# 1. Translate + voice + save
-glance https://www.ayiti.ai --full -l fr --audio-output french.mp3
+# 1. Auto language detection + file saving
+glance https://lemonde.fr --output french-article.md   # Auto-detects French format
 
-# 2. Use local AI for privacy
+# 2. Format override for different use cases  
+glance https://news.com --format json --output backup.md  # JSON content in .md file
+
+# 3. Use local AI for privacy
 glance https://www.ayiti.ai --model llama3 --free-only
 
-# 3. Match voice to language
-glance https://lemonde.fr --voice antoine -l fr --read
+# 4. Match voice to auto-detected language
+glance https://www.ayiti.ai/fr --voice antoine --read    # French detection + voice
 
-# 4. Streaming for long content
+# 5. Streaming for long content
 glance https://long-article.com --stream
 ```
 
