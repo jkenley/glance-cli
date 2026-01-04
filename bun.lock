@@ -10,11 +10,13 @@
         "elevenlabs": "^1.59.0",
         "openai": "^4.47.1",
         "ora": "^8.0.1",
-        "puppeteer": "^22.6.0",
       },
       "devDependencies": {
         "@types/node": "^20.11.0",
         "typescript": "^5.3.3",
+      },
+      "optionalDependencies": {
+        "puppeteer": "^22.6.0",
       },
     },
   },

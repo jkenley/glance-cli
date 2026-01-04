@@ -12,7 +12,9 @@
  * - Error categorization
  */
 
-import puppeteer, { Browser, Page } from "puppeteer";
+// Puppeteer types for when we dynamically import
+type Browser = import("puppeteer").Browser;
+type Page = import("puppeteer").Page;
 import path from "node:path";
 
 // === Configuration ===
@@ -117,9 +119,9 @@ function validateFilePath(filePath: string): void {
 /**
  * Launch browser with error handling
  */
-async function launchBrowser(): Promise<Browser> {
+async function launchBrowser(puppeteer: typeof import("puppeteer")): Promise<Browser> {
   try {
-    return await puppeteer.launch({
+    return await puppeteer.default.launch({
       headless: true,
       args: [
         "--no-sandbox",
@@ -158,6 +160,7 @@ async function launchBrowser(): Promise<Browser> {
 async function captureWithRetry(
   url: string,
   options: Required<ScreenshotOptions>,
+  puppeteer: typeof import("puppeteer"),
   attempt: number = 1
 ): Promise<void> {
   let browser: Browser | undefined;
@@ -165,7 +168,7 @@ async function captureWithRetry(
 
   try {
     // Launch browser
-    browser = await launchBrowser();
+    browser = await launchBrowser(puppeteer);
 
     // Create page with timeout
     page = await browser.newPage();
@@ -268,7 +271,7 @@ async function captureWithRetry(
       if (attempt < SCREENSHOT_CONFIG.MAX_RETRIES) {
         const delay = SCREENSHOT_CONFIG.RETRY_DELAY * Math.pow(2, attempt - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return captureWithRetry(url, options, attempt + 1);
+        return captureWithRetry(url, options, puppeteer, attempt + 1);
       }
     }
 
@@ -353,8 +356,18 @@ export async function takeScreenshot(
     );
   }
 
-  // Capture screenshot with retry
-  await captureWithRetry(url, finalOptions);
+  // Dynamically import Puppeteer and capture screenshot with retry
+  try {
+    const puppeteer = await import("puppeteer");
+    await captureWithRetry(url, finalOptions, puppeteer);
+  } catch (err: any) {
+    throw new ScreenshotError(
+      `Puppeteer not available: ${err.message}`,
+      "PUPPETEER_MISSING",
+      "Screenshot functionality unavailable",
+      "Install Puppeteer: npm install puppeteer"
+    );
+  }
 }
 
 /**
@@ -366,7 +379,8 @@ export async function checkPuppeteerAvailability(): Promise<{
   hint?: string;
 }> {
   try {
-    const browser = await puppeteer.launch({
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({
       headless: true,
       args: ["--no-sandbox"],
       timeout: 5000,
@@ -379,6 +393,13 @@ export async function checkPuppeteerAvailability(): Promise<{
         available: false,
         error: "Chromium browser not found",
         hint: "Reinstall Puppeteer: bun install puppeteer",
+      };
+    }
+    if (err.message?.includes("Cannot resolve module")) {
+      return {
+        available: false,
+        error: "Puppeteer not installed",
+        hint: "Install Puppeteer: npm install puppeteer",
       };
     }
     return {

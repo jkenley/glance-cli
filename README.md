@@ -9,7 +9,7 @@
 - **File output** – Save summaries as markdown, JSON, or plain text
 - **Lightning fast** – Built with Bun and TypeScript
 
-Turn any webpage into terminal-friendly insights with AI summaries or full content — read it, listen to it, or export it.
+Turn any webpage into terminal-friendly insights with AI summaries or full content, read it, listen to it, or export it.
 
 [![npm version](https://badge.fury.io/js/glance-cli.svg)](https://www.npmjs.com/package/glance-cli)
 [![Downloads](https://img.shields.io/npm/dm/glance-cli.svg)](https://www.npmjs.com/package/glance-cli)
@@ -249,7 +249,7 @@ bun dev https://www.ayiti.ai
 
 ## ☕ Support
 
-I built this in my spare time because I wanted a better way to read web content from my terminal. If you find it useful and want to support continued development, you can [buy me a coffee](https://ko-fi.com/jkenley). It's completely optional—the tool will always be free and open source regardless.
+I built this in my spare time because I wanted a better way to read web content from my terminal. If you find it useful and want to support continued development, you can [buy me a coffee](https://ko-fi.com/jkenley).
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jkenley)
 

@@ -15,7 +15,9 @@
  * - Better error messages with hints
  */
 
-import puppeteer, { Browser, Page } from "puppeteer";
+// Puppeteer types for when we dynamically import
+type Browser = import("puppeteer").Browser;
+type Page = import("puppeteer").Page;
 
 // === Text Encoding Utilities ===
 
@@ -525,14 +527,15 @@ async function simpleFetch(
  */
 async function fullRenderFetch(
     url: string,
-    options: Required<FetchOptions>
+    options: Required<FetchOptions>,
+    puppeteer: typeof import("puppeteer")
 ): Promise<string> {
     let browser: Browser | undefined;
     let page: Page | undefined;
 
     try {
         // Launch browser
-        browser = await puppeteer.launch({
+        browser = await puppeteer.default.launch({
             headless: true,
             args: [
                 "--no-sandbox",
@@ -725,7 +728,18 @@ async function fetchWithRetry(
     try {
         // Use appropriate fetch method
         if (options.fullRender) {
-            return await fullRenderFetch(url, options);
+            try {
+                const puppeteer = await import("puppeteer");
+                return await fullRenderFetch(url, options, puppeteer);
+            } catch (err: any) {
+                throw new FetchError(
+                    `Puppeteer not available: ${err.message}`,
+                    "PUPPETEER_MISSING",
+                    "Full rendering unavailable",
+                    false,
+                    "Install Puppeteer: npm install puppeteer"
+                );
+            }
         } else {
             return await simpleFetch(url, options);
         }
