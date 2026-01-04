@@ -199,9 +199,19 @@ export class VoiceSynthesizer {
         return new Promise((resolve) => {
             const args: string[] = [];
             
-            // Add voice if specified
+            // Language-specific voice selection for macOS
+            const macOSVoices: Record<string, string> = {
+                'fr': 'Thomas',     // French male voice
+                'es': 'Jorge',      // Spanish male voice  
+                'ht': 'Thomas',     // Use French voice for Haitian Creole
+                'en': 'Alex',       // English voice
+            };
+            
+            // Add voice - prefer user-specified, then language-specific, then system default
             if (options.voice) {
                 args.push('-v', options.voice);
+            } else if (options.language && macOSVoices[options.language]) {
+                args.push('-v', macOSVoices[options.language]);
             }
             
             // Add output file if specified
