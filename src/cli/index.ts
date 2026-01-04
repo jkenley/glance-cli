@@ -46,7 +46,6 @@ function parseCliArgs() {
         tldr: { type: "boolean" },
         "key-points": { type: "boolean" },
         eli5: { type: "boolean" },
-        emoji: { type: "boolean" },
         full: { type: "boolean" },
         ask: { type: "string", short: "q" },
 
@@ -70,8 +69,6 @@ function parseCliArgs() {
         "free-only": { type: "boolean" },
         "prefer-quality": { type: "boolean" },
 
-        // Export options
-        export: { type: "string", short: "e" },
 
         // Advanced options
         "full-render": { type: "boolean" },
@@ -172,16 +169,14 @@ export async function runCli() {
     // Prepare options
     const options: GlanceOptions = {
       model: values.model,
-      language: values.language || "en",
+      language: values.language,
       tldr: values.tldr,
       keyPoints: values["key-points"],
       eli5: values.eli5,
-      emoji: values.emoji,
       full: values.full,
       customQuestion: values.ask,
       stream: values.stream,
       maxTokens,
-      export: values.export,
       screenshot: values.screenshot,
       fullRender: values["full-render"],
       metadata: values.metadata,

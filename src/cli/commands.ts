@@ -13,6 +13,7 @@ import { takeScreenshot } from "../core/screenshot";
 import { createVoiceSynthesizer, cleanTextForSpeech } from "../core/voice";
 import { getDefaultModel, showCostWarning } from "../core/service-detector";
 import { sanitizeAIResponse } from "../core/text-cleaner";
+import { detectLanguage, shouldAutoDetectLanguage } from "../core/language-detector";
 import { LANGUAGE_MAP, CONFIG } from "./config";
 import { GlanceError, ErrorCodes } from "./errors";
 import { logger } from "./logger";
@@ -28,7 +29,6 @@ export interface GlanceOptions {
   tldr?: boolean;
   keyPoints?: boolean;
   eli5?: boolean;
-  emoji?: boolean;
   full?: boolean;
   customQuestion?: string;
   stream?: boolean;
@@ -59,9 +59,9 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
     logger.setLevel("debug");
   }
 
-  // Language setup
-  const language = options.language || "en";
-  const languageName = LANGUAGE_MAP[language] || "English";
+  // Language will be determined after fetching content
+  let language: string = options.language || "en";
+  let languageName = LANGUAGE_MAP[language as keyof typeof LANGUAGE_MAP] || "English";
 
   // Note: Caching temporarily disabled to eliminate corruption issues
 
@@ -97,6 +97,24 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
 
   const cleanText = extractCleanText(html);
 
+  // Auto-detect language if not specified by user
+  if (!options.language && shouldAutoDetectLanguage()) {
+    const detectionResult = detectLanguage(url, html, cleanText, options.language);
+    language = detectionResult.detected;
+    languageName = LANGUAGE_MAP[language as keyof typeof LANGUAGE_MAP] || "English";
+
+    // Show detection info to user if confidence is not high
+    if (detectionResult.confidence !== 'high' && detectionResult.source !== 'default') {
+      logger.info(`Auto-detected language: ${languageName}`);
+    }
+
+    // Log detection result if in debug mode
+    if (options.debug) {
+      logger.debug(`Language detected: ${language} (${detectionResult.confidence} confidence from ${detectionResult.source})`);
+      logger.debug(`Detection signals: ${detectionResult.signals.join(', ')}`);
+    }
+  }
+
   if (cleanText.length > CONFIG.MAX_CONTENT_SIZE) {
     extractSpinner.fail("Content too large");
     throw new GlanceError(
@@ -123,7 +141,10 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
   if (options.links) {
     const links = extractLinks(html);
     console.log(chalk.bold(`\n🔗 Found ${links.length} links:`));
-    links.forEach(link => console.log(chalk.cyan(`  • ${link}`)));
+    links.forEach(link => {
+      const display = link.text ? `${link.text} (${link.href})` : link.href;
+      console.log(chalk.cyan(`  • ${display}`));
+    });
   }
 
   // Handle screenshot
@@ -140,8 +161,8 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
     return fullContent;
   }
 
-  // Summarize content
-  const { rawSummary, formattedSummary } = await summarizeContentWithRaw(cleanText, url, { language, ...options });
+  // Summarize content with detected or specified language
+  const { rawSummary, formattedSummary } = await summarizeContentWithRaw(cleanText, url, { ...options, language });
 
   // Note: Caching disabled
 
@@ -150,7 +171,7 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
     // Show the full formatted summary first
     console.log(formattedSummary);
     console.log(""); // Add spacing
-    
+
     // Then clean the raw text for speech and read it aloud
     const cleanedSummary = cleanTextForSpeech(rawSummary);
     await handleVoiceSynthesis(cleanedSummary, { language, ...options });
@@ -267,7 +288,6 @@ async function summarizeContentWithRaw(
         tldr: options.tldr,
         keyPoints: options.keyPoints,
         eli5: options.eli5,
-        emoji: options.emoji,
         language: options.language,
         stream: options.stream,
         maxTokens: options.maxTokens,
@@ -339,7 +359,6 @@ async function summarizeContent(
         tldr: options.tldr,
         keyPoints: options.keyPoints,
         eli5: options.eli5,
-        emoji: options.emoji,
         language: options.language,
         stream: options.stream,
         maxTokens: options.maxTokens,
@@ -556,9 +575,9 @@ export async function checkServicesCommand(): Promise<void> {
     }
 
     // Check ElevenLabs
-    const elevenlabsCheck = { 
-      valid: !!process.env.ELEVENLABS_API_KEY, 
-      error: process.env.ELEVENLABS_API_KEY ? undefined : "API key missing" 
+    const elevenlabsCheck = {
+      valid: !!process.env.ELEVENLABS_API_KEY,
+      error: process.env.ELEVENLABS_API_KEY ? undefined : "API key missing"
     };
 
     spinner.succeed("Service detection complete");

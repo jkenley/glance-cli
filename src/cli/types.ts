@@ -35,9 +35,6 @@ export interface VoiceOptions {
   pitch?: number;
 }
 
-// Export format types
-export type ExportFormat = "txt" | "md" | "json" | "html";
-
 // Cache options types
 export interface CacheOptions {
   noCache?: boolean;
@@ -53,7 +50,6 @@ export interface SummaryOptions {
   tldr?: boolean;
   keyPoints?: boolean;
   eli5?: boolean;
-  emoji?: boolean;
   full?: boolean;
   customQuestion?: string;
   language?: string;
@@ -84,7 +80,6 @@ export interface CliValues {
   tldr?: boolean;
   "key-points"?: boolean;
   eli5?: boolean;
-  emoji?: boolean;
   full?: boolean;
   ask?: string;
   language?: string;
@@ -99,7 +94,6 @@ export interface CliValues {
   "check-services"?: boolean;
   "free-only"?: boolean;
   "prefer-quality"?: boolean;
-  export?: string;
   "no-cache"?: boolean;
   "clear-cache"?: boolean;
   "full-render"?: boolean;

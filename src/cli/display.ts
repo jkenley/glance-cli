@@ -24,7 +24,6 @@ ${chalk.bold("Options:")}
   ${chalk.cyan("--eli5")}               Explain like I'm five
   ${chalk.cyan("--full")}               Read complete article without summarization ${chalk.green("(NEW!)")}
   ${chalk.cyan("--ask, -q <question>")} Ask a specific question about the content
-  ${chalk.cyan("--emoji")}              Add contextual emojis to the summary
   
   ${chalk.bold("Language & Voice:")}
   ${chalk.cyan("--language, -l <lang>")} Output language (en, fr, es, ht)
@@ -44,9 +43,6 @@ ${chalk.bold("Options:")}
   ${chalk.bold("Service Management:")}
   ${chalk.cyan("--check-services")}     Check available AI services and their status
   
-  ${chalk.bold("Export:")}
-  ${chalk.cyan("--export, -e <file>")} Export summary to file (.md, .json, .html, .txt)
-  
   ${chalk.bold("Advanced Options:")}
   ${chalk.cyan("--full-render")}        Enable JavaScript rendering (slower, for SPAs)
   ${chalk.cyan("--screenshot <file>")} Capture a screenshot of the page
@@ -56,7 +52,7 @@ ${chalk.bold("Options:")}
 
 ${chalk.bold("Examples:")}
   ${chalk.gray("# Quick summary")}
-  glance https://example.com/article
+  glance https://www.ayiti.ai
 
   ${chalk.gray("# One-sentence summary with voice")}
   glance https://news.site/article --tldr --read
@@ -68,13 +64,10 @@ ${chalk.bold("Examples:")}
   glance https://docs.site/api --ask "How do I authenticate?"
 
   ${chalk.gray("# French summary with French voice")}
-  glance https://example.com/article -l fr --voice antoine --read
-
-  ${chalk.gray("# Export summary to markdown")}
-  glance https://example.com/article --export summary.md
+  glance https://www.ayiti.ai -l fr --voice antoine --read
 
   ${chalk.gray("# Use specific AI model")}
-  glance https://example.com --model gpt-4o-mini
+  glance https://www.ayiti.ai --model gpt-4o-mini
 
   ${chalk.gray("# Check available services")}
   glance --check-services
@@ -99,84 +92,77 @@ ${chalk.bold("Glance CLI Examples")}
 
 ${chalk.bold("Basic Usage:")}
   ${chalk.gray("# Standard summary")}
-  glance https://example.com/article
+  glance https://www.ayiti.ai
 
   ${chalk.gray("# One-sentence summary")}
-  glance https://example.com/article --tldr
+  glance https://www.ayiti.ai --tldr
 
   ${chalk.gray("# Key points extraction")}
-  glance https://example.com/article --key-points
+  glance https://www.ayiti.ai --key-points
 
   ${chalk.gray("# Simple explanation")}
-  glance https://example.com/article --eli5
+  glance https://www.ayiti.ai --eli5
 
   ${chalk.gray("# Full article without summarization")}
-  glance https://example.com/article --full
+  glance https://www.ayiti.ai --full
 
 ${chalk.bold("Voice & Audio:")}
   ${chalk.gray("# Read summary aloud")}
-  glance https://example.com --tldr --read
+  glance https://www.ayiti.ai --tldr --read
 
   ${chalk.gray("# Use specific voice")}
-  glance https://example.com --voice nova --read
+  glance https://www.ayiti.ai --voice nova --read
 
   ${chalk.gray("# Save as audio file")}
-  glance https://example.com --tldr --audio-output summary.mp3
+  glance https://www.ayiti.ai --tldr --audio-output summary.mp3
 
   ${chalk.gray("# List available voices")}
   glance --list-voices
 
 ${chalk.bold("Multilingual:")}
   ${chalk.gray("# French summary with French voice")}
-  glance https://example.com -l fr --voice antoine --read
+  glance https://www.ayiti.ai -l fr --voice antoine --read
 
   ${chalk.gray("# Spanish summary")}
-  glance https://example.com -l es
+  glance https://www.ayiti.ai -l es
 
   ${chalk.gray("# Translate French article to English")}
   glance https://lemonde.fr/article --full -l en
 
 ${chalk.bold("AI Models:")}
   ${chalk.gray("# Use GPT-4")}
-  glance https://example.com --model gpt-4o-mini
+  glance https://www.ayiti.ai --model gpt-4o-mini
 
   ${chalk.gray("# Use Gemini")}
-  glance https://example.com --model gemini-2.0-flash-exp
+  glance https://www.ayiti.ai --model gemini-2.0-flash-exp
 
   ${chalk.gray("# Use local Ollama")}
-  glance https://example.com --model llama3
+  glance https://www.ayiti.ai --model llama3
 
   ${chalk.gray("# Force free services only")}
-  glance https://example.com --free-only
+  glance https://www.ayiti.ai --free-only
 
   ${chalk.gray("# Prefer quality (paid) services")}
-  glance https://example.com --prefer-quality
-
-${chalk.bold("Export:")}
-  ${chalk.gray("# Export to Markdown")}
-  glance https://example.com --export summary.md
-
-  ${chalk.gray("# Export to JSON")}
-  glance https://example.com --export data.json
+  glance https://www.ayiti.ai --prefer-quality
 
 ${chalk.bold("Advanced:")}
   ${chalk.gray("# JavaScript-heavy sites")}
   glance https://spa-site.com --full-render
 
   ${chalk.gray("# Take screenshot")}
-  glance https://example.com --screenshot page.png
+  glance https://www.ayiti.ai --screenshot page.png
 
   ${chalk.gray("# Extract metadata")}
-  glance https://example.com --metadata
+  glance https://www.ayiti.ai --metadata
 
   ${chalk.gray("# Extract all links")}
-  glance https://example.com --links
+  glance https://www.ayiti.ai --links
 
   ${chalk.gray("# Stream response")}
-  glance https://example.com --stream
+  glance https://www.ayiti.ai --stream
 
   ${chalk.gray("# Debug mode")}
-  glance https://example.com --debug
+  glance https://www.ayiti.ai --debug
 `);
 }
 

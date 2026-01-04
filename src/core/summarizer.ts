@@ -29,7 +29,6 @@ export interface SummarizeOptions {
     tldr?: boolean;
     keyPoints?: boolean;
     eli5?: boolean;
-    emoji?: boolean;
     translate?: boolean;
     format?: boolean;
     language: string;
@@ -324,15 +323,15 @@ function buildPrompt(text: string, options: SummarizeOptions): string {
     } else if (options.format) {
         prompt += PROMPT_TEMPLATES.smartFormatting();
     } else if (options.customQuestion) {
-        prompt += PROMPT_TEMPLATES.customQuestion(options.customQuestion, options.emoji || false);
+        prompt += PROMPT_TEMPLATES.customQuestion(options.customQuestion, false);
     } else if (options.tldr) {
-        prompt += PROMPT_TEMPLATES.tldr(options.emoji || false);
+        prompt += PROMPT_TEMPLATES.tldr(false);
     } else if (options.keyPoints) {
-        prompt += PROMPT_TEMPLATES.keyPoints(options.emoji || false);
+        prompt += PROMPT_TEMPLATES.keyPoints(false);
     } else if (options.eli5) {
-        prompt += PROMPT_TEMPLATES.eli5(options.emoji || false);
+        prompt += PROMPT_TEMPLATES.eli5(false);
     } else {
-        prompt += PROMPT_TEMPLATES.standardSummary(options.emoji || false);
+        prompt += PROMPT_TEMPLATES.standardSummary(false);
     }
 
     // Output instructions
