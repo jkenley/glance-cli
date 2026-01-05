@@ -1,6 +1,5 @@
 /**
- * glance v0.7.0 – Production-Ready Multi-Provider Summarizer
- * Enhanced with Expert-Level Prompt Engineering
+ * Production-Grade Content Summarization
  *
  * Supports:
  * - OpenAI (gpt-*, o1-*)

@@ -4,7 +4,7 @@
 
 - **100% FREE by default** – Uses local Ollama (no API keys needed!)
 - **Auto language detection** – Detects English, French, Spanish, Haitian Creole
-- **Privacy-first** – Your data stays on your machine  
+- **No tracking** – Your browsing history stays private
 - **Voice-enabled** – Read articles aloud with multilingual support
 - **File output** – Save summaries as markdown, JSON, or plain text
 - **Lightning fast** – Built with Bun and TypeScript
@@ -139,7 +139,7 @@ done
 
 ### **Voice & Audio**
 ```bash
---read, --speak               # Read aloud
+--read, -r                    # Read aloud
 --audio-output <file>         # Save as MP3
 --voice <name>                # Choose voice (nova, onyx, antoine, isabella)
 --list-voices                 # Show available voices
@@ -179,7 +179,7 @@ done
 
 ```bash
 # AI Providers (optional)
-export OPENAI_API_KEY=sk-...
+export OPENAI_API_KEY=...
 export GEMINI_API_KEY=...
 
 # Voice (optional, for premium)
@@ -214,23 +214,9 @@ glance https://long-article.com --stream
 
 ## 🚀 Performance
 
-- **Fast**: 2-3 seconds with local AI (Ollama)
+- **Fast**: ~5 seconds with local AI (Ollama)
 - **Efficient**: Cheerio-based content extraction
-- **Smart caching**: Reduces redundant API calls
 - **Lightweight**: ~8MB bundle size
-
----
-
-## 📊 Why Glance?
-
-| Feature | Glance + Ollama | Traditional Tools |
-|---------|-----------------|-------------------|
-| **Cost** | $0 forever | $20-100/month |
-| **Privacy** | 100% local | Cloud-based |
-| **Voice** | Built-in | Often separate |
-| **Speed** | 2-3 seconds | 10-30 seconds |
-| **Multilingual** | Full support | Limited |
-| **Offline** | Works offline | Requires internet |
 
 ---
 

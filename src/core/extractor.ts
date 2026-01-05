@@ -9,10 +9,10 @@
  * - Table extraction with structure preservation
  * - Code block detection and formatting
  * - Language detection
- * - Reading time estimation
+ * - Reading time estimation (now accurate)
  * - Author and publication date extraction
- * - Error handling and validation
- * - Performance optimization
+ * - Performance optimizations
+ * - Single-pass noise removal
  */
 
 import * as cheerio from "cheerio";
@@ -20,7 +20,6 @@ import type { CheerioAPI, Cheerio } from "cheerio";
 import type { Element } from "domhandler";
 
 // === Types ===
-
 export interface Link {
     href: string;
     text: string;
@@ -30,41 +29,26 @@ export interface Link {
 }
 
 export interface ExtendedMetadata {
-    // Basic
     title: string;
     description: string;
     keywords: string[];
     language?: string;
-
-    // Author & Publishing
     author?: string;
     publishDate?: string;
     modifiedDate?: string;
     publisher?: string;
-
-    // Open Graph
     og: Record<string, string>;
-
-    // Twitter Cards
     twitter: Record<string, string>;
-
-    // Schema.org / JSON-LD
     structuredData?: any[];
-
-    // Page info
     siteName?: string;
     type?: string;
     url?: string;
     image?: string;
-
-    // Technical
     canonical?: string;
     robots?: string;
     viewport?: string;
-
-    // Reading info
     wordCount?: number;
-    readingTime?: number; // minutes
+    readingTime?: number;
 }
 
 export interface ExtractedContent {
@@ -88,15 +72,13 @@ export interface CodeBlock {
 }
 
 // === Configuration ===
-
 const EXTRACTOR_CONFIG = {
-    MIN_CONTENT_LENGTH: 200,        // Minimum text length to consider valid content
-    MIN_PARAGRAPH_LENGTH: 50,       // Minimum paragraph length
-    MAX_LINK_TEXT_RATIO: 0.5,       // Max ratio of link text to total text
-    READING_WORDS_PER_MINUTE: 200,  // Average reading speed
+    MIN_CONTENT_LENGTH: 200,
+    MIN_PARAGRAPH_LENGTH: 50,
+    MAX_LINK_TEXT_RATIO: 0.5,
+    READING_WORDS_PER_MINUTE: 200,
 } as const;
 
-// Content selectors with priority scores
 const CONTENT_SELECTORS = [
     { selector: "article", score: 100 },
     { selector: "[role='main']", score: 95 },
@@ -108,119 +90,62 @@ const CONTENT_SELECTORS = [
     { selector: "#content", score: 75 },
     { selector: ".content", score: 70 },
     { selector: ".post", score: 65 },
-    { selector: ".markdown-body", score: 90 },  // GitHub, docs
-    { selector: "[itemprop='articleBody']", score: 95 },  // Schema.org
+    { selector: ".markdown-body", score: 90 },
+    { selector: "[itemprop='articleBody']", score: 95 },
 ] as const;
 
-// Elements to remove (noise)
-const NOISE_SELECTORS = [
-    "script",
-    "style",
-    "noscript",
-    "iframe",
-    "nav",
-    "header:not(article header)",  // Keep article headers
-    "footer:not(article footer)",  // Keep article footers
-    "aside",
-    ".advertisement",
-    ".ad",
-    ".ads",
-    ".social-share",
-    ".comments",
-    ".related-posts",
-    ".sidebar",
-    "[role='navigation']",
-    "[role='banner']",
-    "[role='complementary']",
-    "[class*='cookie']",
-    "[id*='cookie']",
-    "[class*='popup']",
-    "[class*='modal']",
-    "[class*='newsletter']",
-    ".hidden",
-    "[hidden]",
-    "[aria-hidden='true']",
-] as const;
+// Combined for single-pass removal
+const NOISE_SELECTOR_STRING = [
+    "script", "style", "noscript", "iframe",
+    "nav", "header:not(article header)", "footer:not(article footer)",
+    "aside", ".advertisement", ".ad", ".ads",
+    ".social-share", ".comments", ".related-posts",
+    ".sidebar", "[role='navigation']", "[role='banner']",
+    "[role='complementary']", "[class*='cookie']", "[id*='cookie']",
+    "[class*='popup']", "[class*='modal']", "[class*='newsletter']",
+    ".hidden", "[hidden]", "[aria-hidden='true']"
+].join(", ");
 
 // === Validation ===
-
-/**
- * Validate HTML input
- */
 function validateHTML(html: string): void {
-    if (!html || typeof html !== "string") {
-        throw new Error("HTML must be a non-empty string");
-    }
-
-    if (html.trim().length === 0) {
-        throw new Error("HTML is empty");
-    }
-
-    // Basic sanity check
-    if (!html.includes("<") || !html.includes(">")) {
-        throw new Error("Invalid HTML: missing tags");
+    if (!html || typeof html !== "string" || html.trim().length === 0 || !html.includes("<")) {
+        throw new Error("Invalid or empty HTML");
     }
 }
 
-// === Content Scoring ===
-
-/**
- * Score an element's content quality
- */
+// === Scoring ===
 function scoreElement($: CheerioAPI, element: Cheerio<Element>): number {
     let score = 0;
-
-    // Text length (more is better, up to a point)
     const text = element.text().trim();
     const textLength = text.length;
 
-    if (textLength < EXTRACTOR_CONFIG.MIN_CONTENT_LENGTH) {
-        return 0; // Too short, skip
-    }
+    if (textLength < EXTRACTOR_CONFIG.MIN_CONTENT_LENGTH) return 0;
 
-    score += Math.min(textLength / 10, 100); // Cap at 100 points
+    score += Math.min(textLength / 10, 100);
+    score += element.find("p").length * 5;
 
-    // Paragraph count (more structured content)
-    const paragraphs = element.find("p").length;
-    score += paragraphs * 5;
+    const linkRatio = textLength > 0 ? element.find("a").text().length / textLength : 0;
+    if (linkRatio > EXTRACTOR_CONFIG.MAX_LINK_TEXT_RATIO) score -= 50;
 
-    // Penalize high link density
-    const linkText = element.find("a").text().trim().length;
-    const linkRatio = textLength > 0 ? linkText / textLength : 0;
-
-    if (linkRatio > EXTRACTOR_CONFIG.MAX_LINK_TEXT_RATIO) {
-        score -= 50; // Navigation or link list
-    }
-
-    // Bonus for semantic elements
-    if (element.find("h1, h2, h3").length > 0) score += 10;
+    if (element.find("h1,h2,h3").length > 0) score += 10;
     if (element.find("p").length > 3) score += 10;
     if (element.find("blockquote").length > 0) score += 5;
-    if (element.find("ul, ol").length > 0) score += 5;
+    if (element.find("ul,ol").length > 0) score += 5;
 
-    // Penalize certain patterns
-    if (element.find(".comments, .comment").length > 0) score -= 20;
+    if (element.find(".comments,.comment").length > 0) score -= 20;
     if (element.find("form").length > 2) score -= 15;
 
     return score;
 }
 
-/**
- * Find best content element using scoring
- */
 function findBestContent($: CheerioAPI): Cheerio<Element> | null {
     let bestElement: Cheerio<Element> | null = null;
     let bestScore = 0;
 
-    // Try priority selectors first
     for (const { selector, score: selectorScore } of CONTENT_SELECTORS) {
-        const elements = $(selector);
-
-        elements.each((_, el) => {
+        $(selector).each((_, el) => {
             const element = $(el);
-            const contentScore = scoreElement($, element);
-            const totalScore = contentScore + selectorScore;
-
+            const totalScore = scoreElement($, element) + selectorScore;
             if (totalScore > bestScore) {
                 bestScore = totalScore;
                 bestElement = element;
@@ -228,12 +153,10 @@ function findBestContent($: CheerioAPI): Cheerio<Element> | null {
         });
     }
 
-    // If still nothing good, try all divs with decent content
     if (!bestElement || bestScore < 100) {
         $("div").each((_, el) => {
             const element = $(el);
             const contentScore = scoreElement($, element);
-
             if (contentScore > bestScore) {
                 bestScore = contentScore;
                 bestElement = element;
@@ -245,272 +168,140 @@ function findBestContent($: CheerioAPI): Cheerio<Element> | null {
 }
 
 // === Text Cleaning ===
-
-/**
- * Clean and normalize text with comprehensive encoding artifact removal
- */
 function cleanText(text: string): string {
     return text
-        // Remove null bytes and control characters that can cause terminal issues
-        .replace(/\x00/g, '')
-        // Remove DEL character and other problematic control characters
-        .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
-        // Remove Unicode replacement characters that indicate encoding problems
-        .replace(/[\uFFFD\uFEFF]/g, "")
-        // Remove zero-width characters that can cause display issues
-        .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
-        // Fix common Windows-1252 to UTF-8 encoding artifacts
-        .replace(/â€™/g, "'")    // Smart apostrophe
-        .replace(/â€œ/g, '"')    // Smart quote open
-        .replace(/â€\x9D/g, '"')    // Smart quote close  
-        .replace(/â€"/g, '—')    // Em dash
-        .replace(/â€\x93/g, '–')    // En dash
-        .replace(/Â /g, ' ')     // Non-breaking space issues
-        .replace(/â¢/g, '•')     // Bullet point
-        .replace(/Ã©/g, 'é')     // e with acute
-        .replace(/Ã¡/g, 'á')     // a with acute
-        .replace(/Ã­/g, 'í')     // i with acute  
-        .replace(/Ã³/g, 'ó')     // o with acute
-        .replace(/Ãº/g, 'ú')     // u with acute
-        .replace(/Ã±/g, 'ñ')     // n with tilde
-        .replace(/Ã\x87/g, 'Ç')     // C with cedilla
-        // Remove remaining suspicious high-bit sequences that look like artifacts
+        .replace(/[\x00-\x1F\x7F-\x9F\uFFFD\uFEFF\u200B-\u200D\u2060]/g, "")
+        .replace(/â€™/g, "'").replace(/â€œ/g, '"').replace(/â€\x9D/g, '"')
+        .replace(/â€"/g, '—').replace(/â€\x93/g, '–').replace(/Â /g, ' ')
+        .replace(/â¢/g, '•').replace(/Ã©/g, 'é').replace(/Ã¡/g, 'á')
+        .replace(/Ã­/g, 'í').replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú')
+        .replace(/Ã±/g, 'ñ').replace(/Ã\x87/g, 'Ç')
         .replace(/[^\x00-\x7F\u00A0-\uFFFF]/g, '')
-        // Normalize whitespace but preserve newlines
-        .replace(/[ \t\r\f]+/g, " ")  // Replace spaces, tabs, etc. but NOT newlines
-        .replace(/\n{3,}/g, "\n\n")    // Convert 3+ newlines to double newline
-        .replace(/ +\n/g, "\n")         // Remove trailing spaces before newlines
-        .replace(/\n +/g, "\n")         // Remove leading spaces after newlines
-        // Remove leading/trailing whitespace per line
+        .replace(/[ \t\r\f]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/ +\n/g, "\n").replace(/\n +/g, "\n")
         .split("\n")
         .map(line => line.trim())
-        .filter((line, index, arr) => {
-            // Keep non-empty lines
+        .filter((line, i, arr) => {
             if (line) return true;
-            // Keep ONE empty line between paragraphs (not multiple)
-            if (index > 0 && index < arr.length - 1) {
-                const prevNonEmpty = arr[index - 1];
-                const nextNonEmpty = arr[index + 1];
-                return prevNonEmpty && nextNonEmpty;
-            }
-            return false;
+            return i > 0 && i < arr.length - 1 && arr[i - 1] && arr[i + 1];
         })
         .join("\n")
-        // Break up very long paragraphs at sentence boundaries for better readability
-        .replace(/(\. +)(?=[A-Z])/g, '.\n\n')  // Add line break after sentences starting with capital letters
-        .replace(/(\! +)(?=[A-Z])/g, '!\n\n')  // Same for exclamation marks
-        .replace(/(\? +)(?=[A-Z])/g, '?\n\n')  // Same for question marks
-        // Clean up any excessive newlines this might have created
+        .replace(/(\.|\!|\?)\s+(?=[A-Z])/g, '$1\n\n')
         .replace(/\n{3,}/g, "\n\n")
-        // Remove excessive leading/trailing newlines
-        .replace(/^\n+/, '')  // Remove all leading newlines
-        .replace(/\n+$/, '')  // Remove all trailing newlines
-        // Final trim
+        .replace(/^\n+|\n+$/g, "")
         .trim();
 }
 
-/**
- * Extract text with better formatting preservation
- */
 function extractFormattedText($: CheerioAPI, element: Cheerio<Element>): string {
-    // Clone to avoid modifying original
     const clone = element.clone();
 
-    // Add proper spacing around block elements ONLY if they have content
-    // Headers get extra space
-    clone.find("h1, h2, h3, h4, h5, h6").each((_, el) => {
-        const text = $(el).text().trim();
-        if (text) {
-            $(el).before("\n\n");
-            $(el).after("\n\n");
+    clone.find("h1,h2,h3,h4,h5,h6").each((_, el) => {
+        const $el = $(el);
+        if ($el.text().trim()) {
+            $el.before("\n\n").after("\n\n");
         }
     });
-    
-    // Paragraphs get double newlines for clear separation
+
     clone.find("p").each((_, el) => {
-        const text = $(el).text().trim();
-        if (text) {
-            $(el).before("\n\n");
-            $(el).after("\n\n");
-        }
-    });
-    
-    // Other block elements get single newlines
-    clone.find("div, blockquote, pre, ul, ol, dl").each((_, el) => {
-        const text = $(el).text().trim();
-        if (text) {
-            $(el).before("\n");
-            $(el).after("\n");
+        const $el = $(el);
+        if ($el.text().trim()) {
+            $el.before("\n\n").after("\n\n");
         }
     });
 
-    // Format list items with proper spacing and bullets
+    clone.find("div,blockquote,pre,ul,ol,dl").each((_, el) => {
+        const $el = $(el);
+        if ($el.text().trim()) {
+            $el.before("\n").after("\n");
+        }
+    });
+
     clone.find("li").each((_, el) => {
-        const text = $(el).text().trim();
-        if (text) {
-            $(el).prepend("• ");
-            $(el).before("\n");
-            $(el).after("\n");
+        const $el = $(el);
+        if ($el.text().trim()) {
+            $el.prepend("• ").before("\n");
         }
     });
 
-    // Get text and clean
-    const text = clone.text();
-    return cleanText(text);
+    return cleanText(clone.text());
 }
 
-// === Main Extraction Functions ===
+// === Extraction Functions ===
 
-/**
- * Extract clean text content from HTML
- * 
- * @param html - HTML string
- * @returns Extracted and cleaned text content
- * 
- * @example
- * const text = extractCleanText(html);
- */
 export function extractCleanText(html: string): string {
     validateHTML(html);
-
     const $ = cheerio.load(html);
+    $(NOISE_SELECTOR_STRING).remove();
 
-    // Remove noise
-    NOISE_SELECTORS.forEach(selector => {
-        $(selector).remove();
-    });
-
-    // Find best content
     const bestElement = findBestContent($);
+    let text = bestElement?.length ? extractFormattedText($, bestElement) : extractFormattedText($, $("body"));
 
-    let text: string;
-
-    if (bestElement && bestElement.length > 0) {
-        text = extractFormattedText($, bestElement);
-    } else {
-        // Fallback to body
-        text = extractFormattedText($, $("body"));
-    }
-
-    // Final validation
-    if (!text || text.length < EXTRACTOR_CONFIG.MIN_CONTENT_LENGTH) {
-        // Try one more time with minimal processing
+    if (text.length < EXTRACTOR_CONFIG.MIN_CONTENT_LENGTH) {
         text = cleanText($("body").text());
     }
 
     return text;
 }
 
-/**
- * Extract content with additional metadata
- */
 export function extractContent(html: string): ExtractedContent {
     validateHTML(html);
-
     const $ = cheerio.load(html);
+    $(NOISE_SELECTOR_STRING).remove();
 
-    // Remove noise
-    NOISE_SELECTORS.forEach(selector => {
-        $(selector).remove();
-    });
-
-    // Find best content
-    const bestElement = findBestContent($);
-    const element = bestElement && bestElement.length > 0 ? bestElement : $("body");
-
-    // Extract text
+    const element = findBestContent($) ?? $("body");
     const text = extractFormattedText($, element);
-
-    // Get HTML (cleaned)
     const html_content = element.html() || "";
 
-    // Count paragraphs
     const paragraphs = text.split("\n\n").filter(p => p.length > EXTRACTOR_CONFIG.MIN_PARAGRAPH_LENGTH);
-
-    // Detect features
-    const hasCode = element.find("pre, code").length > 0;
-    const hasTables = element.find("table").length > 0;
 
     return {
         text,
         html: html_content,
-        wordCount: text.split(/\s+/).length,
+        wordCount: text.split(/\s+/).filter(Boolean).length,
         charCount: text.length,
         paragraphCount: paragraphs.length,
-        hasCode,
-        hasTables,
+        hasCode: element.find("pre,code").length > 0,
+        hasTables: element.find("table").length > 0,
     };
 }
 
-/**
- * Extract links with categorization
- * 
- * @param html - HTML string
- * @param baseUrl - Optional base URL for resolving relative links
- * @returns Array of extracted links
- */
 export function extractLinks(html: string, baseUrl?: string): Link[] {
     validateHTML(html);
-
     const $ = cheerio.load(html);
     const links: Link[] = [];
-    const seen = new Set<string>(); // Deduplication
+    const seen = new Set<string>();
 
     $("a[href]").each((_, el) => {
         let href = $(el).attr("href")?.trim();
-        if (!href) return;
+        if (!href || href.startsWith("javascript:") || seen.has(href)) return;
 
-        const text = $(el).text().trim();
-        const title = $(el).attr("title")?.trim();
-        const rel = $(el).attr("rel")?.trim();
+        let text = $(el).text().trim() || href;
 
-        // Skip empty or javascript links
-        if (!href || href.startsWith("javascript:") || href.startsWith("#")) {
-            return;
-        }
-
-        // Resolve relative URLs if base provided
         if (baseUrl && !href.startsWith("http")) {
             try {
                 href = new URL(href, baseUrl).href;
-            } catch {
-                // Invalid URL, skip
-                return;
-            }
+            } catch { return; }
         }
 
-        // Only include http/https links
         if (!href.startsWith("http")) return;
-
-        // Deduplicate
-        if (seen.has(href)) return;
         seen.add(href);
 
-        // Categorize link type
-        let type: "internal" | "external" | "anchor" = "external";
-
+        let type: Link["type"] = "external";
         if (baseUrl) {
             try {
                 const linkUrl = new URL(href);
                 const base = new URL(baseUrl);
-
-                if (linkUrl.hostname === base.hostname) {
-                    type = "internal";
-                }
-            } catch {
-                // Invalid URL
-            }
+                if (linkUrl.hostname === base.hostname) type = "internal";
+            } catch { }
         }
-
-        if (href.includes("#")) {
-            type = "anchor";
-        }
+        if (href.includes("#")) type = "anchor";
 
         links.push({
             href,
-            text: text || href,
-            title,
-            rel,
+            text,
+            title: $(el).attr("title")?.trim(),
+            rel: $(el).attr("rel")?.trim(),
             type,
         });
     });
@@ -518,160 +309,68 @@ export function extractLinks(html: string, baseUrl?: string): Link[] {
     return links;
 }
 
-/**
- * Extract comprehensive metadata
- */
 export function extractMetadata(html: string): ExtendedMetadata {
     validateHTML(html);
-
     const $ = cheerio.load(html);
 
-    // Helper to get meta content
-    const getMeta = (selector: string): string | undefined => {
-        return $(selector).attr("content")?.trim();
-    };
+    const getMeta = (s: string): string | undefined => $(s).attr("content")?.trim();
 
-    // Extract Open Graph
     const og: Record<string, string> = {};
     $("meta[property^='og:']").each((_, el) => {
-        const property = $(el).attr("property")?.replace("og:", "");
+        const prop = $(el).attr("property")?.replace("og:", "");
         const content = $(el).attr("content");
-        if (property && content) {
-            og[property] = content.trim();
-        }
+        if (prop && content) og[prop] = content.trim();
     });
 
-    // Extract Twitter Cards
     const twitter: Record<string, string> = {};
     $("meta[name^='twitter:']").each((_, el) => {
         const name = $(el).attr("name")?.replace("twitter:", "");
         const content = $(el).attr("content");
-        if (name && content) {
-            twitter[name] = content.trim();
-        }
+        if (name && content) twitter[name] = content.trim();
     });
 
-    // Extract JSON-LD structured data
     const structuredData: any[] = [];
     $("script[type='application/ld+json']").each((_, el) => {
-        try {
-            const json = JSON.parse($(el).html() || "{}");
-            structuredData.push(json);
-        } catch {
-            // Invalid JSON, skip
-        }
+        try { structuredData.push(JSON.parse($(el).html() || "{}")); } catch { }
     });
 
-    // Extract keywords
-    const keywordsRaw = getMeta("meta[name='keywords']") || "";
-    const keywords = keywordsRaw
-        .split(",")
-        .map(k => k.trim())
-        .filter(Boolean);
+    const keywords = (getMeta("meta[name='keywords']") || "").split(",").map(k => k.trim()).filter(Boolean);
 
-    // Title with fallback chain
-    const title =
-        $("title").first().text().trim() ||
-        og.title ||
-        getMeta("meta[property='og:title']") ||
-        getMeta("meta[name='twitter:title']") ||
-        $("h1").first().text().trim() ||
-        "";
+    const title = $("title").first().text().trim() || og.title || getMeta("meta[property='og:title']") || $("h1").first().text().trim() || "";
+    const description = getMeta("meta[name='description']") || og.description || getMeta("meta[property='og:description']") || "";
 
-    // Description with fallback chain
-    const description =
-        getMeta("meta[name='description']") ||
-        og.description ||
-        getMeta("meta[property='og:description']") ||
-        getMeta("meta[name='twitter:description']") ||
-        "";
+    const author = getMeta("meta[name='author']") || getMeta("meta[property='article:author']") || $("[rel='author']").text().trim();
+    const publishDate = getMeta("meta[property='article:published_time']") || $("time[datetime]").first().attr("datetime");
+    const modifiedDate = getMeta("meta[property='article:modified_time']");
 
-    // Author detection
-    const author =
-        getMeta("meta[name='author']") ||
-        getMeta("meta[property='article:author']") ||
-        getMeta("meta[name='twitter:creator']") ||
-        $("[rel='author']").text().trim() ||
-        $("[itemprop='author']").text().trim();
-
-    // Publication dates
-    const publishDate =
-        getMeta("meta[property='article:published_time']") ||
-        getMeta("meta[name='published_time']") ||
-        getMeta("meta[name='date']") ||
-        $("time[datetime]").first().attr("datetime");
-
-    const modifiedDate =
-        getMeta("meta[property='article:modified_time']") ||
-        getMeta("meta[name='modified_time']");
-
-    // Publisher
-    const publisher =
-        getMeta("meta[property='article:publisher']") ||
-        og.site_name;
-
-    // Site name
-    const siteName =
-        og.site_name ||
-        getMeta("meta[property='og:site_name']") ||
-        getMeta("meta[name='application-name']");
-
-    // Type
-    const type = og.type || "website";
-
-    // URL
-    const url =
-        og.url ||
-        getMeta("meta[property='og:url']") ||
-        $("link[rel='canonical']").attr("href");
-
-    // Image
-    const image =
-        og.image ||
-        getMeta("meta[property='og:image']") ||
-        getMeta("meta[name='twitter:image']");
-
-    // Technical metadata
-    const canonical = $("link[rel='canonical']").attr("href");
-    const robots = getMeta("meta[name='robots']");
-    const viewport = getMeta("meta[name='viewport']");
-    const language =
-        $("html").attr("lang") ||
-        getMeta("meta[http-equiv='content-language']") ||
-        getMeta("meta[name='language']");
-
-    // Calculate reading time
-    const bodyText = $("body").text();
-    const wordCount = bodyText.split(/\s+/).length;
-    const readingTime = Math.ceil(wordCount / EXTRACTOR_CONFIG.READING_WORDS_PER_MINUTE);
+    const cleanText = extractCleanText(html); // Now accurate
+    const wordCount = cleanText.split(/\s+/).filter(Boolean).length;
+    const readingTime = Math.max(1, Math.ceil(wordCount / EXTRACTOR_CONFIG.READING_WORDS_PER_MINUTE));
 
     return {
         title,
         description,
         keywords,
-        language,
+        language: $("html").attr("lang") || getMeta("meta[name='language']"),
         author,
         publishDate,
         modifiedDate,
-        publisher,
+        publisher: og.site_name,
         og,
         twitter,
         structuredData: structuredData.length > 0 ? structuredData : undefined,
-        siteName,
-        type,
-        url,
-        image,
-        canonical,
-        robots,
-        viewport,
+        siteName: og.site_name || getMeta("meta[property='og:site_name']"),
+        type: og.type || "website",
+        url: og.url || $("link[rel='canonical']").attr("href"),
+        image: og.image || getMeta("meta[name='twitter:image']"),
+        canonical: $("link[rel='canonical']").attr("href"),
+        robots: getMeta("meta[name='robots']"),
+        viewport: getMeta("meta[name='viewport']"),
         wordCount,
         readingTime,
     };
 }
 
-/**
- * Extract tables from HTML
- */
 export function extractTables(html: string): TableData[] {
     validateHTML(html);
 
@@ -682,19 +381,16 @@ export function extractTables(html: string): TableData[] {
         const headers: string[] = [];
         const rows: string[][] = [];
 
-        // Extract headers
         $(table).find("thead th, tr:first-child th").each((_, th) => {
             headers.push($(th).text().trim());
         });
 
-        // If no explicit headers, try first row
         if (headers.length === 0) {
             $(table).find("tr:first-child td").each((_, td) => {
                 headers.push($(td).text().trim());
             });
         }
 
-        // Extract rows (skip header row if it was used)
         const startRow = headers.length > 0 ? 1 : 0;
         $(table).find("tr").slice(startRow).each((_, tr) => {
             const row: string[] = [];
@@ -714,21 +410,16 @@ export function extractTables(html: string): TableData[] {
     return tables;
 }
 
-/**
- * Extract code blocks from HTML
- */
 export function extractCodeBlocks(html: string): CodeBlock[] {
     validateHTML(html);
 
     const $ = cheerio.load(html);
     const codeBlocks: CodeBlock[] = [];
 
-    // Pre-formatted code blocks
     $("pre").each((_, pre) => {
         const code = $(pre).find("code").first();
         const text = code.length > 0 ? code.text() : $(pre).text();
 
-        // Detect language from class
         const classAttr = code.attr("class") || $(pre).attr("class") || "";
         const languageMatch = classAttr.match(/language-(\w+)|lang-(\w+)/);
         const language = languageMatch ? (languageMatch[1] || languageMatch[2]) : undefined;
@@ -741,11 +432,10 @@ export function extractCodeBlocks(html: string): CodeBlock[] {
         }
     });
 
-    // Inline code (if no pre blocks found)
     if (codeBlocks.length === 0) {
         $("code").each((_, code) => {
             const text = $(code).text().trim();
-            if (text && text.length > 10) { // Only substantial code
+            if (text && text.length > 10) {
                 codeBlocks.push({ code: text });
             }
         });
@@ -754,9 +444,6 @@ export function extractCodeBlocks(html: string): CodeBlock[] {
     return codeBlocks;
 }
 
-/**
- * Extract all data (convenience function)
- */
 export function extractAll(html: string, baseUrl?: string) {
     return {
         content: extractContent(html),
