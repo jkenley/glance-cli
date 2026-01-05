@@ -8,7 +8,7 @@ import { CONFIG } from "./config";
 import type { ServiceStatus } from "./types";
 
 export function showHelp(): void {
-  console.log(`
+	console.log(`
 ${chalk.bold("glance")} v${CONFIG.VERSION} – AI-powered web reader
 
 ${chalk.bold("Usage:")}
@@ -87,11 +87,11 @@ ${chalk.dim("For more information: https://github.com/jkenley/glance-cli")}
 }
 
 export function showVersion(): void {
-  console.log(`glance v${CONFIG.VERSION}`);
+	console.log(`glance v${CONFIG.VERSION}`);
 }
 
 export function showExamples(): void {
-  console.log(`
+	console.log(`
 ${chalk.bold("Glance CLI Examples")}
 
 ${chalk.bold("Basic Usage:")}
@@ -170,65 +170,100 @@ ${chalk.bold("Advanced:")}
 `);
 }
 
-export function formatErrorMessage(error: any): string {
-  if (error.code === "ENOTFOUND") {
-    return chalk.red(`Cannot reach the website. Please check your internet connection and the URL.`);
-  }
-  
-  if (error.code === "ETIMEDOUT") {
-    return chalk.red(`Request timed out. The website might be slow or unresponsive.`);
-  }
-  
-  if (error.userMessage) {
-    return chalk.red(error.userMessage);
-  }
-  
-  return chalk.red(`Error: ${error.message || "Unknown error occurred"}`);
+export function formatErrorMessage(error: unknown): string {
+	if (
+		error &&
+		typeof error === "object" &&
+		"code" in error &&
+		error.code === "ENOTFOUND"
+	) {
+		return chalk.red(
+			`Cannot reach the website. Please check your internet connection and the URL.`,
+		);
+	}
+
+	if (
+		error &&
+		typeof error === "object" &&
+		"code" in error &&
+		error.code === "ETIMEDOUT"
+	) {
+		return chalk.red(
+			`Request timed out. The website might be slow or unresponsive.`,
+		);
+	}
+
+	if (error && typeof error === "object" && "userMessage" in error) {
+		return chalk.red(String(error.userMessage));
+	}
+
+	const message = error instanceof Error ? error.message : String(error);
+	return chalk.red(`Error: ${message || "Unknown error occurred"}`);
 }
 
 export function showServiceStatus(services: ServiceStatus): void {
-  if (!services) {
-    console.error(chalk.red("Service detection failed - no services information available"));
-    return;
-  }
+	if (!services) {
+		console.error(
+			chalk.red("Service detection failed - no services information available"),
+		);
+		return;
+	}
 
-  console.log(chalk.bold("\n🔍 Service Detection Results:\n"));
-  
-  const formatStatus = (available: boolean) => 
-    available ? chalk.green("✅ Available") : chalk.gray("❌ Not Available");
-  
-  console.log(chalk.bold("AI Services:"));
-  
-  if (services.ollama) {
-    console.log(`  Ollama (Local):    ${formatStatus(services.ollama.available)} ${services.ollama.available && services.ollama.models ? chalk.gray(`(${services.ollama.models.length} models)`) : ""}`);
-  }
-  
-  if (services.openai) {
-    console.log(`  OpenAI:            ${formatStatus(services.openai.available)}`);
-  }
-  
-  if (services.gemini) {
-    console.log(`  Google Gemini:     ${formatStatus(services.gemini.available)}`);
-  }
-  
-  console.log(chalk.bold("\nVoice Services:"));
-  
-  if (services.elevenlabs) {
-    console.log(`  ElevenLabs:        ${formatStatus(services.elevenlabs.available)} ${services.elevenlabs.available && services.elevenlabs.voices ? chalk.gray(`(${services.elevenlabs.voices.length} voices)`) : ""}`);
-  }
-  
-  console.log(`  System TTS:        ${formatStatus(true)} ${chalk.gray("(fallback)")}`);
-  
-  console.log(chalk.bold("\nDefault Configuration:"));
-  console.log(`  Default AI Model:  ${chalk.cyan(services.defaultModel || "None available")}`);
-  console.log(`  Priority:          ${chalk.cyan(services.priority || "Free services first")}`);
-  
-  if (services.recommendations && services.recommendations.length > 0) {
-    console.log(chalk.bold("\n💡 Recommendations:"));
-    services.recommendations.forEach((rec: string) => {
-      console.log(`  • ${rec}`);
-    });
-  }
-  
-  console.log(chalk.dim("\nFor setup instructions, visit: https://github.com/jkenley/glance-cli#setup"));
+	console.log(chalk.bold("\n🔍 Service Detection Results:\n"));
+
+	const formatStatus = (available: boolean) =>
+		available ? chalk.green("✅ Available") : chalk.gray("❌ Not Available");
+
+	console.log(chalk.bold("AI Services:"));
+
+	if (services.ollama) {
+		console.log(
+			`  Ollama (Local):    ${formatStatus(services.ollama.available)} ${services.ollama.available && services.ollama.models ? chalk.gray(`(${services.ollama.models.length} models)`) : ""}`,
+		);
+	}
+
+	if (services.openai) {
+		console.log(
+			`  OpenAI:            ${formatStatus(services.openai.available)}`,
+		);
+	}
+
+	if (services.gemini) {
+		console.log(
+			`  Google Gemini:     ${formatStatus(services.gemini.available)}`,
+		);
+	}
+
+	console.log(chalk.bold("\nVoice Services:"));
+
+	if (services.elevenlabs) {
+		console.log(
+			`  ElevenLabs:        ${formatStatus(services.elevenlabs.available)} ${services.elevenlabs.available && services.elevenlabs.voices ? chalk.gray(`(${services.elevenlabs.voices.length} voices)`) : ""}`,
+		);
+	}
+
+	console.log(
+		`  System TTS:        ${formatStatus(true)} ${chalk.gray("(fallback)")}`,
+	);
+
+	console.log(chalk.bold("\nDefault Configuration:"));
+	console.log(
+		`  Default AI Model:  ${chalk.cyan(services.defaultModel || "None available")}`,
+	);
+	console.log(
+		`  Priority:          ${chalk.cyan(services.priority || "Free services first")}`,
+	);
+
+	if (services.recommendations && services.recommendations.length > 0) {
+		console.log(chalk.bold("\n💡 Recommendations:"));
+		services.recommendations.forEach((rec: string) => {
+			console.log(`  • ${rec}`);
+		});
+	}
+
+	console.log(
+		chalk.dim(
+			"\nFor setup instructions, visit: https://github.com/jkenley/glance-cli#setup",
+		),
+	);
 }
