@@ -200,7 +200,7 @@ glance https://lemonde.fr --output french-article.md   # Auto-detects French for
 # 2. Format override for different use cases  
 glance https://news.com --format json --output backup.md  # JSON content in .md file
 
-# 3. Use local AI for privacy
+# 3. Use local AI
 glance https://www.ayiti.ai --model llama3 --free-only
 
 # 4. Match voice to auto-detected language
