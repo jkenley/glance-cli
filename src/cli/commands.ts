@@ -155,7 +155,7 @@ export async function glance(url: string, options: GlanceOptions = {}): Promise<
 
   // Handle full content mode (no summarization)
   if (options.full) {
-    const fullContent = await handleFullContent(cleanText, { language, ...options });
+    const fullContent = await handleFullContent(cleanText, { ...options, language });
 
     // Note: Caching disabled
 
