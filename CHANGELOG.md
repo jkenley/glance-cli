@@ -5,6 +5,42 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-01-05
+
+### 🌍 Enhanced: Multilingual Support
+- **Automatic Language-Aware Voice Selection**: System now automatically selects appropriate voice based on detected or specified language
+  - French content → French voices (Charlotte, Antoine, etc.)
+  - Spanish content → Spanish voices (Isabella, Antonio, etc.)
+  - English content → English voices (Nova, Echo, etc.)
+- **Fixed Language Translation**: The `-l` option now properly translates content to the specified language (e.g., `-l es` for Spanish, `-l fr` for French)
+- **Enhanced Language Instructions**: Added explicit language requirements in AI prompts for better multilingual output
+
+### 📦 Updated: All Dependencies to Latest Versions
+- **Migrated from deprecated packages**:
+  - `elevenlabs` → `@elevenlabs/elevenlabs-js` v2.29.0 (official package)
+  - `puppeteer` v22.6.0 → v24.34.0 (latest stable)
+- **Updated all other dependencies**:
+  - `@google/genai` → v1.34.0
+  - `openai` → v6.15.0
+  - `chalk` → v5.6.2
+  - `cheerio` → v1.1.2
+  - `ora` → v9.0.0
+- **Updated dev dependencies**:
+  - `@biomejs/biome` → v2.3.11
+  - `@types/node` → v25.0.3
+  - `typescript` → v5.9.3
+
+### 🔧 Fixed: API Compatibility
+- Updated ElevenLabs API calls to use v2 format (`textToSpeech.convert()` method)
+- Fixed TypeScript errors in voice synthesis module
+- Removed constant condition linting error
+- Fixed voice parameter handling to prevent undefined errors
+
+### ✨ Improved: User Experience
+- No more deprecation warnings during installation
+- Automatic voice matching for detected content language
+- Better language output consistency across all AI models
+
 ## [0.10.2] - 2026-01-03
 
 ### 🗑️ Removed: Cache System (Temporary)

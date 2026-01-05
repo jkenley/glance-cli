@@ -214,7 +214,7 @@ export async function glance(
 
 		// Then clean the raw text for speech and read it aloud
 		const cleanedSummary = cleanTextForSpeech(rawSummary);
-		await handleVoiceSynthesis(cleanedSummary, { language, ...options });
+		await handleVoiceSynthesis(cleanedSummary, { ...options, language });
 		return formattedSummary;
 	}
 
@@ -301,56 +301,54 @@ async function handleFullContent(
 	let finalContent = content;
 	const needsTranslation = options.language && options.language !== "en";
 
-	if (true) {
-		// Always apply smart formatting for better readability
-		const fullModeSpinner = createSpinner(
+	// Always apply smart formatting for better readability
+	const fullModeSpinner = createSpinner(
+		needsTranslation
+			? "🌍 Translating and formatting full content..."
+			: "🧾 Applying smart formatting...",
+	);
+	fullModeSpinner.start();
+
+	try {
+		// Determine model to use
+		const model =
+			options.model ||
+			(await getDefaultModel(undefined, !!options.preferQuality));
+		const _provider = detectProvider(model);
+
+		// Use AI for translation or formatting
+		const aiOptions = {
+			model,
+			language: options.language,
+			stream: false, // Don't stream for full content
+			maxTokens: options.maxTokens || 8000,
+			translate: needsTranslation,
+			format: true, // Always apply smart formatting
+		};
+
+		const processedContent = await summarize(finalContent, {
+			model: aiOptions.model,
+			language: aiOptions.language,
+			stream: aiOptions.stream,
+			maxTokens: aiOptions.maxTokens,
+			translate: aiOptions.translate as boolean | undefined,
+			format: aiOptions.format,
+		});
+
+		finalContent = sanitizeAIResponse(processedContent);
+
+		fullModeSpinner.succeed(
 			needsTranslation
-				? "🌍 Translating and formatting full content..."
-				: "🧾 Applying smart formatting...",
+				? "Translation and formatting complete"
+				: "Smart formatting applied",
 		);
-		fullModeSpinner.start();
-
-		try {
-			// Determine model to use
-			const model =
-				options.model ||
-				(await getDefaultModel(undefined, !!options.preferQuality));
-			const _provider = detectProvider(model);
-
-			// Use AI for translation or formatting
-			const aiOptions = {
-				model,
-				language: options.language,
-				stream: false, // Don't stream for full content
-				maxTokens: options.maxTokens || 8000,
-				translate: needsTranslation,
-				format: true, // Always apply smart formatting
-			};
-
-			const processedContent = await summarize(finalContent, {
-				model: aiOptions.model,
-				language: aiOptions.language,
-				stream: aiOptions.stream,
-				maxTokens: aiOptions.maxTokens,
-				translate: aiOptions.translate as boolean | undefined,
-				format: aiOptions.format,
-			});
-
-			finalContent = sanitizeAIResponse(processedContent);
-
-			fullModeSpinner.succeed(
-				needsTranslation
-					? "Translation and formatting complete"
-					: "Smart formatting applied",
-			);
-		} catch (error: unknown) {
-			fullModeSpinner.fail(
-				needsTranslation
-					? "Translation failed - showing original content"
-					: "Smart formatting failed - showing original content",
-			);
-			logger.error("Full content processing error:", error);
-		}
+	} catch (error: unknown) {
+		fullModeSpinner.fail(
+			needsTranslation
+				? "Translation failed - showing original content"
+				: "Smart formatting failed - showing original content",
+		);
+		logger.error("Full content processing error:", error);
 	}
 
 	// Format the output
@@ -721,7 +719,7 @@ export async function checkServicesCommand(): Promise<void> {
 			},
 			elevenlabs: {
 				available: elevenlabsCheck.valid,
-				voices: [], // Could be populated with API call if needed
+				voices: [],
 				error: elevenlabsCheck.error,
 			},
 			defaultModel: ollamaCheck.valid

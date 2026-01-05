@@ -1,11 +1,13 @@
 /**
- * Nuclear-level text cleaner to eliminate ALL binary artifacts and corrupted data
- * This is the most aggressive text cleaning possible while preserving legitimate content
+ * Production-grade text cleaner to eliminate ALL binary artifacts and corrupted data
  */
 
 /**
- * Nuclear text cleaner - eliminates ALL suspicious patterns
+ * Nuclear-level text cleaner - eliminates ALL suspicious patterns
  * Uses whitelist approach - only allows verified safe characters
+ *
+ * @param text - The text to clean
+ * @returns The cleaned text
  */
 export function nuclearCleanText(text: string): string {
 	if (!text || typeof text !== "string") {

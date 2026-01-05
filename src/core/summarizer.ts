@@ -353,6 +353,13 @@ function buildPrompt(text: string, options: SummarizeOptions): string {
 		prompt += PROMPT_TEMPLATES.standardSummary(false);
 	}
 
+	// Add explicit language reminder if not English
+	if (options.language && options.language !== "en") {
+		const langName =
+			LANGUAGE_MAP[options.language as keyof typeof LANGUAGE_MAP];
+		prompt += `\n\n**IMPORTANT LANGUAGE REQUIREMENT:**\n- You MUST write your ENTIRE response in ${langName}\n- Do NOT use any other language\n- All output must be in ${langName}`;
+	}
+
 	// Output instructions
 	prompt += PROMPT_TEMPLATES.outputInstruction();
 

@@ -2,8 +2,8 @@ import { spawn } from "node:child_process";
 import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { ElevenLabsClient } from "elevenlabs";
 
 interface VoiceOptions {
 	voice?: string;
@@ -148,17 +148,16 @@ export class VoiceSynthesizer {
 			const { voiceId, model, voiceSettings } =
 				this.getOptimalVoiceConfig(options);
 
-			// Generate audio
-			const audioStream = await this.client.generate({
-				voice: voiceId,
+			// Generate audio using v2 API
+			const response = await this.client.textToSpeech.convert(voiceId, {
 				text,
-				model_id: model,
-				voice_settings: voiceSettings,
+				modelId: model,
+				voiceSettings: voiceSettings,
 			});
 
-			// Convert stream to buffer
+			// Convert response to buffer
 			const chunks: Buffer[] = [];
-			for await (const chunk of audioStream) {
+			for await (const chunk of response) {
 				chunks.push(Buffer.from(chunk));
 			}
 			const audioBuffer = Buffer.concat(chunks);
@@ -230,8 +229,11 @@ export class VoiceSynthesizer {
 			// Add voice - prefer user-specified, then language-specific, then system default
 			if (options.voice) {
 				args.push("-v", options.voice);
-			} else if (options.language && macOSVoices[options.language]) {
-				args.push("-v", macOSVoices[options.language]);
+			} else if (options.language) {
+				const voice = macOSVoices[options.language];
+				if (voice) {
+					args.push("-v", voice);
+				}
 			}
 
 			// Add output file if specified
@@ -562,7 +564,7 @@ export class VoiceSynthesizer {
 				result.push("🇺🇸 ENGLISH VOICES:");
 				Object.entries(LANGUAGE_VOICES.en).forEach(([name, id]) => {
 					if (name !== "default") {
-						const voice = voices.voices.find((v) => v.voice_id === id);
+						const voice = voices.voices.find((v) => v.voiceId === id);
 						if (voice) {
 							result.push(`  • ${name} → ${this.getVoiceDescription(name)}`);
 						}
@@ -576,7 +578,7 @@ export class VoiceSynthesizer {
 					const frenchVoices: string[] = [];
 					Object.entries(LANGUAGE_VOICES.fr).forEach(([name, id]) => {
 						if (name !== "default") {
-							const voice = voices.voices.find((v) => v.voice_id === id);
+							const voice = voices.voices.find((v) => v.voiceId === id);
 							if (voice) {
 								frenchVoices.push(
 									`  • ${name} → ${this.getVoiceDescription(name)}`,
@@ -596,7 +598,7 @@ export class VoiceSynthesizer {
 					const spanishVoices: string[] = [];
 					Object.entries(LANGUAGE_VOICES.es).forEach(([name, id]) => {
 						if (name !== "default") {
-							const voice = voices.voices.find((v) => v.voice_id === id);
+							const voice = voices.voices.find((v) => v.voiceId === id);
 							if (voice) {
 								spanishVoices.push(
 									`  • ${name} → ${this.getVoiceDescription(name)}`,
@@ -636,7 +638,7 @@ export class VoiceSynthesizer {
 				result.push("");
 				result.push("🔍 ALL AVAILABLE VOICES IN YOUR ACCOUNT:");
 				voices.voices.forEach((v) => {
-					result.push(`   ${v.name} (${v.voice_id})`);
+					result.push(`   ${v.name} (${v.voiceId})`);
 				});
 
 				return result;

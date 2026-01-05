@@ -356,7 +356,7 @@ export async function getDefaultModel(
 					if (models.length > 0) {
 						// Prefer llama3 if available, otherwise use the first model
 						const llama3 = models.find((m) => m.name.includes("llama3"));
-						return llama3 ? llama3.name : models[0].name;
+						return llama3?.name || models[0]?.name || "llama3";
 					}
 				}
 			} catch {}
