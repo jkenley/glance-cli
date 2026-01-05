@@ -1,6 +1,6 @@
 {
 	"name": "glance-cli",
-	"version": "0.13.0",
+	"version": "0.13.1",
 	"author": {
 		"name": "Kenley Jean",
 		"email": "alo@jkenley.me",
@@ -53,6 +53,7 @@
 	},
 	"files": [
 		"dist",
+		"src",
 		"README.md",
 		"LICENSE",
 		"CHANGELOG.md"
@@ -81,7 +82,7 @@
 		"access": "public"
 	},
 	"scripts": {
-		"build": "bun run format && bun run lint && bun build ./src/cli.ts --outdir ./dist --target node --minify",
+		"build": "bun run format && bun run lint && bun build ./src/cli.ts --outdir ./dist --target node --minify --external @elevenlabs/elevenlabs-js --external @google/genai --external openai --external puppeteer --external cheerio",
 		"prepublishOnly": "bun run build",
 		"test": "echo \"No tests defined\" && exit 0",
 		"dev": "bun run ./src/cli.ts",

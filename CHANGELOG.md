@@ -5,6 +5,14 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-01-05
+
+### 📦 Optimized: Package Size (Breaking: Major Size Reduction)
+- **Reduced bundle size by 98.8%**: From 10.6MB → 122KB
+- **Externalized heavy dependencies**: AI libraries now loaded separately instead of bundled
+- **Faster installation**: Significantly reduced download time for users
+- **Same functionality**: All features work identically with much smaller footprint
+
 ## [0.13.0] - 2026-01-05
 
 ### 🌍 Enhanced: Multilingual Support
