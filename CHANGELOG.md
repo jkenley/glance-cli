@@ -5,6 +5,39 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-01-06
+
+### 🚀 Added: Comprehensive Local Model Support
+- **Fixed gpt-oss model compatibility**: Added special handling for gpt-oss models that use "thinking" field in responses
+- **Tested and verified 7 Ollama models**:
+  - ✅ llama3:latest - Fast, reliable general-purpose model
+  - ✅ gemma3:4b - Lightweight, efficient for quick summaries
+  - ✅ mistral:7b / mistral:latest - Excellent quality responses
+  - ✅ gpt-oss:20b - Advanced local model with reasoning capabilities
+  - ✅ gpt-oss:120b-cloud - Largest model for complex tasks
+  - ✅ deepseek-r1:latest - Strong reasoning and analysis
+- **100% test success rate**: All models work with --tldr, --key-points, and --eli5 modes
+- **Improved response parsing**: Better extraction of meaningful content from various model response formats
+
+### 🐛 Fixed
+- **gpt-oss models now properly route to Ollama**: Previously failing gpt-oss models now correctly use local Ollama endpoint
+- **Response extraction for thinking-based models**: Models that output reasoning in "thinking" field now have their responses properly extracted
+- **Consistent model detection**: Enhanced provider detection to correctly identify local vs cloud models
+
+### 📝 Documentation
+- Added comprehensive list of tested and supported local models in README
+- Included model-specific notes for optimal usage
+- Updated examples with various model options
+
+## [0.14.0] - 2026-01-06
+
+### ✨ Added: Clipboard Copy Feature
+- **New --copy/-c flag**: Copy summaries directly to clipboard
+- **Cross-platform support**: Works on macOS, Windows, and Linux via clipboardy package
+- **Smart formatting**: Copies raw text for terminal output, formatted for JSON/markdown
+- **Updated documentation**: Added examples and help text for copy feature
+- **Fixed metadata display**: Now shows actual extracted values instead of placeholders
+
 ## [0.13.1] - 2026-01-05
 
 ### 📦 Optimized: Package Size (Breaking: Major Size Reduction)

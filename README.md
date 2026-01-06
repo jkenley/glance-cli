@@ -81,9 +81,21 @@ glance <url> --full -l es --voice isabella --read   # Override to Spanish + voic
 ```
 
 ### 🤖 **AI Models**
+
+#### Tested & Supported Local Models (via Ollama)
+- ✅ **llama3:latest** - Fast, reliable, great for general use
+- ✅ **gemma3:4b** - Lightweight, efficient for quick summaries  
+- ✅ **mistral:7b** / **mistral:latest** - Excellent quality responses
+- ✅ **gpt-oss:20b** - Advanced local model with reasoning capabilities
+- ✅ **gpt-oss:120b-cloud** - Largest model for complex tasks
+- ✅ **deepseek-r1:latest** - Strong reasoning and analysis
+
 ```bash
 # Free local AI (recommended)
-glance <url> --model llama3
+glance <url> --model llama3:latest
+glance <url> --model gemma3:4b
+glance <url> --model mistral:7b
+glance <url> --model gpt-oss:20b
 
 # Premium cloud AI (optional, requires API keys)
 glance <url> --model gpt-4o-mini              # OpenAI

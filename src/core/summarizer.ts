@@ -54,8 +54,17 @@ export const detectProvider = (
 	model: string,
 ): "openai" | "google" | "ollama" => {
 	const lower = model.toLowerCase();
-	if (lower.startsWith("gpt-") || lower.startsWith("o1-")) return "openai";
-	if (lower.startsWith("gemini-")) return "google";
+
+	// Check for OpenAI models (but not gpt-oss which is a local model)
+	if (
+		(lower.startsWith("gpt-") && !lower.startsWith("gpt-oss")) ||
+		lower.startsWith("o1-")
+	) {
+		return "openai";
+	}
+	if (lower.startsWith("gemini-")) {
+		return "google";
+	}
 	return "ollama"; // Default to local if not cloud
 };
 
@@ -567,62 +576,108 @@ async function ollamaSummarize(
 		},
 	});
 
-	const res = await fetch("http://localhost:11434/api/chat", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body,
-	});
+	// Set longer timeout for large models (20B+ params need more time)
+	const timeoutMs = 120000; // 2 minutes timeout
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-	if (!res.ok) {
-		const err = await res.text();
-		throw new Error(`Ollama error: ${res.status} - ${err}`);
-	}
+	try {
+		const res = await fetch("http://localhost:11434/api/chat", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body,
+			signal: controller.signal,
+		});
+		clearTimeout(timeoutId);
 
-	if (options.stream) {
-		let full = "";
-		const reader = res.body?.getReader();
-		const decoder = new TextDecoder();
-		while (true) {
-			if (!reader) throw new Error("Reader is not available");
-			const { done, value } = await reader.read();
-			if (done) break;
-			const chunk = decoder.decode(value);
-			const lines = chunk.split("\n").filter(Boolean);
-			for (const line of lines) {
-				try {
-					const json = JSON.parse(line);
-					const content = json.message?.content || "";
-					process.stdout.write(chalk.gray(content));
-					full += content;
-				} catch {}
+		if (!res.ok) {
+			const err = await res.text();
+			throw new Error(`Ollama error: ${res.status} - ${err}`);
+		}
+
+		if (options.stream) {
+			let full = "";
+			const reader = res.body?.getReader();
+			const decoder = new TextDecoder();
+			while (true) {
+				if (!reader) throw new Error("Reader is not available");
+				const { done, value } = await reader.read();
+				if (done) break;
+				const chunk = decoder.decode(value);
+				const lines = chunk.split("\n").filter(Boolean);
+				for (const line of lines) {
+					try {
+						const json = JSON.parse(line);
+						const content = json.message?.content || "";
+						process.stdout.write(chalk.gray(content));
+						full += content;
+					} catch {}
+				}
+			}
+			process.stdout.write("\n");
+			return full;
+		}
+
+		const data = await res.json();
+
+		// Handle gpt-oss specific response format where content might be in 'thinking' field
+		const message = (
+			data as { message?: { content?: string; thinking?: string } }
+		).message;
+		let rawContent = message?.content?.trim() ?? "";
+
+		// If content is empty but thinking field has content, use thinking field (gpt-oss behavior)
+		if (!rawContent && message?.thinking?.trim()) {
+			const thinkingContent = message.thinking.trim();
+
+			// Try to extract the final answer from thinking content
+			// Look for patterns like quoted text or final statements
+			const quotedMatch = thinkingContent.match(/"([^"]+)"$/);
+			if (quotedMatch) {
+				rawContent = quotedMatch[1] ?? "";
+			} else {
+				// Look for the last complete sentence as the answer
+				const sentences = thinkingContent
+					.split(/[.!?]+/)
+					.filter((s) => s.trim().length > 10);
+				if (sentences.length > 0) {
+					rawContent = `${sentences[sentences.length - 1]?.trim()}.`;
+				} else {
+					// Fallback to first part of thinking content
+					rawContent =
+						thinkingContent.slice(0, 500) +
+						(thinkingContent.length > 500 ? "..." : "");
+				}
 			}
 		}
-		process.stdout.write("\n");
-		return full;
+
+		// Smart cleaning: Only apply nuclear cleaning if actual artifacts detected
+		if (hasBinaryArtifacts(rawContent)) {
+			console.error(
+				"🚨 CRITICAL: Binary artifacts in Ollama response! Applying emergency cleaning...",
+			);
+			return nuclearCleanText(rawContent);
+		}
+
+		// For clean responses, only do minimal cleaning to preserve paragraph structure
+		return rawContent
+			.replace(
+				/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi,
+				"",
+			)
+			.replace(/\b0x[0-9A-Fa-f]+/g, "")
+			.replace(/ {2,}/g, " ") // Multiple spaces become single space
+			.replace(/\t/g, " ") // Tabs become spaces
+			.trim();
+	} catch (error: unknown) {
+		clearTimeout(timeoutId);
+		if ((error as Error).name === "AbortError") {
+			throw new Error(
+				`Ollama timeout: Large model took longer than ${timeoutMs / 1000}s to respond`,
+			);
+		}
+		throw error;
 	}
-
-	const data = await res.json();
-	const rawContent =
-		(data as { message?: { content?: string } }).message?.content?.trim() ?? "";
-
-	// Smart cleaning: Only apply nuclear cleaning if actual artifacts detected
-	if (hasBinaryArtifacts(rawContent)) {
-		console.error(
-			"🚨 CRITICAL: Binary artifacts in Ollama response! Applying emergency cleaning...",
-		);
-		return nuclearCleanText(rawContent);
-	}
-
-	// For clean responses, only do minimal cleaning to preserve paragraph structure
-	return rawContent
-		.replace(
-			/\b(console|warn|error|log|TextDecoder|Buffer|ArrayBuffer)\b/gi,
-			"",
-		)
-		.replace(/\b0x[0-9A-Fa-f]+/g, "")
-		.replace(/ {2,}/g, " ") // Multiple spaces become single space
-		.replace(/\t/g, " ") // Tabs become spaces
-		.trim();
 }
 
 /**
