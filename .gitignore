@@ -35,3 +35,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Project specific
 next-features/
+
+# Development/testing files
+model-test-results.md
+test-all-models.sh
+check-analytics.sh
