@@ -27,6 +27,7 @@ bun install -g glance-cli  # Or: npm install -g glance-cli
 glance https://www.ayiti.ai                     # AI summary
 glance https://www.ayiti.ai/fr --read           # Auto-detects French + voice  
 glance https://news.com --output summary.md     # Save as markdown
+glance https://news.com --copy                  # Copy to clipboard
 ```
 
 **For 100% free local AI:**
@@ -51,6 +52,7 @@ glance <url> --key-points     # Bullet points
 glance <url> --eli5           # Simple explanation
 glance <url> --full           # Full content (no summary)
 glance <url> --ask "..."      # Ask specific question
+glance <url> --copy           # Copy summary to clipboard
 ```
 
 ### 🎤 **Voice & Audio**
@@ -100,6 +102,9 @@ glance <url> --free-only      # Never use paid APIs
 ```bash
 # Morning news with audio
 glance https://news.ycombinator.com --tldr --read
+
+# Quick copy for sharing
+glance https://techcrunch.com/article --tldr --copy
 
 # Documentation lookup
 glance https://nextjs.org/docs --ask "What's the App Router?"
@@ -159,6 +164,7 @@ done
 ```bash
 --format <type>               # Output format: md, json, plain (default: terminal)
 --output, -o <file>           # Save to file (auto-detects format from extension)
+--copy, -c                    # Copy summary to clipboard
 --stream                      # Live streaming output
 ```
 
@@ -196,6 +202,9 @@ export OLLAMA_ENDPOINT=http://localhost:11434
 ```bash
 # 1. Auto language detection + file saving
 glance https://lemonde.fr --output french-article.md   # Auto-detects French format
+
+# 2. Quick sharing workflow
+glance https://article.com --tldr --copy              # Copy summary for instant sharing
 
 # 2. Format override for different use cases  
 glance https://news.com --format json --output backup.md  # JSON content in .md file

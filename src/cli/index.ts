@@ -71,6 +71,7 @@ function parseCliArgs() {
 				// Format & Output options
 				format: { type: "string" },
 				output: { type: "string", short: "o" },
+				copy: { type: "boolean", short: "c" },
 
 				// Advanced options
 				"full-render": { type: "boolean" },
@@ -192,6 +193,7 @@ export async function runCli() {
 			freeOnly: values["free-only"],
 			preferQuality: values["prefer-quality"],
 			debug: values.debug,
+			copy: values.copy,
 		};
 
 		// Run the main command

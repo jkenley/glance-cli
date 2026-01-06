@@ -5,6 +5,7 @@
 
 import { writeFile } from "node:fs/promises";
 import chalk from "chalk";
+import clipboard from "clipboardy";
 import {
 	extractCleanText,
 	extractLinks,
@@ -60,6 +61,7 @@ export interface GlanceOptions {
 	freeOnly?: boolean;
 	preferQuality?: boolean;
 	debug?: boolean;
+	copy?: boolean;
 }
 
 /**
@@ -162,12 +164,7 @@ export async function glance(
 	if (options.metadata) {
 		const metadata = extractMetadata(html);
 		console.log(chalk.bold("\n📊 Page Metadata:"));
-		console.log(
-			formatOutput(JSON.stringify(metadata, null, 2), {
-				format: "json",
-				url: url,
-			}),
-		);
+		console.log(JSON.stringify(metadata, null, 2));
 	}
 
 	// Handle links extraction
@@ -223,6 +220,16 @@ export async function glance(
 	// Save to file if output specified
 	if (options.output) {
 		await saveToFile(summary, options.output);
+	}
+
+	// Copy to clipboard if requested
+	if (options.copy) {
+		// Copy formatted output for JSON/markdown, raw summary for terminal
+		const contentToCopy =
+			options.format === "json" || options.format === "markdown"
+				? summary
+				: rawSummary || summary;
+		await copyToClipboard(contentToCopy);
 	}
 
 	const duration = Date.now() - startTime;
@@ -287,6 +294,21 @@ async function saveToFile(content: string, filename: string): Promise<void> {
 			ErrorCodes.EXPORT_FAILED,
 			`Failed to save content to ${filename}`,
 			false,
+		);
+	}
+}
+
+/**
+ * Copy content to clipboard
+ */
+async function copyToClipboard(content: string): Promise<void> {
+	try {
+		await clipboard.write(content);
+		logger.info(chalk.green("✓ Copied to clipboard"));
+	} catch (error: unknown) {
+		logger.warn(
+			chalk.yellow("⚠ Could not copy to clipboard:"),
+			error instanceof Error ? error.message : String(error),
 		);
 	}
 }

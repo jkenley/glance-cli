@@ -46,6 +46,7 @@ ${chalk.bold("Options:")}
   ${chalk.bold("Output Format:")}
   ${chalk.cyan("--format <type>")}      Output format: md, json, plain (default: terminal)
   ${chalk.cyan("--output, -o <file>")} Save to file (auto-detects format from extension)
+  ${chalk.cyan("--copy, -c")}           Copy summary to clipboard
   
   ${chalk.bold("Advanced Options:")}
   ${chalk.cyan("--full-render")}        Enable JavaScript rendering (slower, for SPAs)
