@@ -172,6 +172,67 @@ function sanitizeMetadata(metadata: any): PageMetadata {
 	};
 }
 
+// === Content Formatting Helpers ===
+
+/**
+ * Format content for better readability by adding spacing between numbered lists and paragraphs
+ */
+function formatContentForReadability(content: string): string {
+	if (!content || typeof content !== "string") {
+		return content;
+	}
+
+	let formatted = content.trim();
+
+	// Add spacing between numbered list items (1., 2., 3., etc.)
+	formatted = formatted.replace(/^(\d+\.\s+.+)$/gm, (match, p1) => {
+		return `${p1}\n`;
+	});
+
+	// Add spacing between bullet points (-,*, •)
+	formatted = formatted.replace(/^([-*•]\s+.+)$/gm, (match, p1) => {
+		return `${p1}\n`;
+	});
+
+	// Add spacing between paragraphs that are longer than 100 characters
+	const lines = formatted.split("\n");
+	const spaced: string[] = [];
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i].trim();
+		const nextLine = lines[i + 1]?.trim();
+
+		spaced.push(line);
+
+		// Add extra spacing after:
+		// 1. Long lines (likely paragraph endings)
+		// 2. Lines ending with periods, exclamation marks, or question marks
+		// 3. Before numbered items (1., 2., etc.)
+		// 4. Before bullet points
+		if (line && nextLine) {
+			const isLongLine = line.length > 80;
+			const endsWithPunctuation = /[.!?:]$/.test(line);
+			const nextIsNumbered = /^\d+\.\s/.test(nextLine);
+			const nextIsBullet = /^[-*•]\s/.test(nextLine);
+			const lineIsNumbered = /^\d+\.\s/.test(line);
+
+			if (
+				(isLongLine && endsWithPunctuation) ||
+				nextIsNumbered ||
+				nextIsBullet ||
+				(lineIsNumbered && nextLine.length > 40)
+			) {
+				spaced.push("");
+			}
+		}
+	}
+
+	// Clean up excessive blank lines (more than 2 consecutive)
+	formatted = spaced.join("\n").replace(/\n{3,}/g, "\n\n");
+
+	return formatted;
+}
+
 // === Format Implementations ===
 
 /**
@@ -254,7 +315,10 @@ function formatTerminal(
 			: EMOJI.summary;
 	parts.push(chalk.bold.magenta(`${contentEmoji} ${contentTitle}:`));
 	parts.push("");
-	parts.push(chalk.white(summary));
+
+	// Format content with better spacing for readability
+	const formattedContent = formatContentForReadability(summary);
+	parts.push(chalk.white(formattedContent));
 
 	// Timestamp (if enabled)
 	if (options.includeTimestamp && !options.compact) {
@@ -335,7 +399,8 @@ function formatMarkdown(
 	// Main content
 	parts.push("---");
 	parts.push("");
-	parts.push(summary);
+	const formattedContent = formatContentForReadability(summary);
+	parts.push(formattedContent);
 
 	// Timestamp
 	if (options.includeTimestamp) {
@@ -351,9 +416,10 @@ function formatMarkdown(
  * Format as JSON
  */
 function formatJSON(summary: string, options: Required<FormatOptions>): string {
+	const formattedContent = formatContentForReadability(summary);
 	const output: any = {
 		url: options.url,
-		content: summary,
+		content: formattedContent,
 		metadata: {
 			title: options.metadata.title || null,
 			description: options.metadata.description || null,
@@ -495,8 +561,10 @@ function formatHTML(summary: string, options: Required<FormatOptions>): string {
 
 	// Content
 	parts.push('  <div class="content">');
+	// Format content for better readability first
+	const formattedContent = formatContentForReadability(summary);
 	// Convert line breaks to paragraphs
-	const paragraphs = summary.split("\n\n");
+	const paragraphs = formattedContent.split("\n\n");
 	paragraphs.forEach((para) => {
 		if (para.trim()) {
 			parts.push(`    <p>${escapeHTML(para).replace(/\n/g, "<br>")}</p>`);
@@ -562,7 +630,8 @@ function formatPlainText(
 	parts.push("");
 
 	// Content
-	parts.push(summary);
+	const formattedContent = formatContentForReadability(summary);
+	parts.push(formattedContent);
 
 	// Footer
 	if (options.includeTimestamp) {
