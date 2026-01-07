@@ -14,13 +14,11 @@ import {
 	listVoicesCommand,
 } from "./commands";
 import { formatErrorMessage, showHelp, showVersion } from "./display";
-// Import modules
 import { GlanceError } from "./errors";
 import { logger } from "./logger";
 import { validateLanguage, validateMaxTokens, validateURL } from "./validators";
 
 export * from "./commands";
-// Export all modules for programmatic use
 export * from "./config";
 export * from "./display";
 export * from "./errors";

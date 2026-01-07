@@ -1,0 +1,11 @@
+{
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/.git": true,
+		"**/.cursor": true,
+		"**/dist": true,
+		"**/build": true,
+		"**/coverage": true,
+		"bun.lock": true
+	}
+}
