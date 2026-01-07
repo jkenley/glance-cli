@@ -420,9 +420,9 @@ async function summarizeContentWithRaw(
 	const summarizeSpinner = options.stream
 		? null
 		: createSpinner(
-				`Processing with ${model}...`,
-				options.disableStdinHandling,
-			);
+			`Processing with ${model}...`,
+			options.disableStdinHandling,
+		);
 
 	summarizeSpinner?.start();
 
@@ -1184,12 +1184,15 @@ async function interactiveLinkNavigation(
 			chalk.dim("  '3 --eli5 -m gemini': Navigate to link 3, ELI5 with Gemini"),
 		);
 
+		console.log("")
+
 		let input: string;
 		try {
 			input = await new Promise<string>((resolve, reject) => {
-				rl.question(chalk.green("\n>>> "), (answer) => {
+				rl.question(chalk.green(" >>> "), (answer) => {
 					resolve(answer);
 				});
+				
 				// Check if readline was closed
 				if ((rl as any).closed) {
 					reject(new Error("Readline interface was closed"));
