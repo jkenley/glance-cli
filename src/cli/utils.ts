@@ -130,11 +130,12 @@ export async function withRetry<T>(
 /**
  * Create a spinner with consistent styling
  */
-export function createSpinner(text: string): Ora {
+export function createSpinner(text: string, disableStdin = false): Ora {
 	return ora({
 		text,
 		spinner: "dots",
 		color: "cyan",
+		discardStdin: !disableStdin,
 	});
 }
 
@@ -190,7 +191,7 @@ export function getTerminalWidth(): number {
  * Truncate text to fit terminal width
  */
 export function truncateToWidth(text: string, maxWidth?: number): string {
-	const width = maxWidth || getTerminalWidth() - 4; // Leave some margin
+	const width = maxWidth || getTerminalWidth() - 4;
 
 	if (text.length <= width) {
 		return text;

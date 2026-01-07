@@ -28,6 +28,7 @@ glance https://www.ayiti.ai                     # AI summary
 glance https://www.ayiti.ai/fr --read           # Auto-detects French + voice  
 glance https://news.com --output summary.md     # Save as markdown
 glance https://news.com --copy                  # Copy to clipboard
+glance https://news.ycombinator.com --browse    # Interactive navigation
 ```
 
 **For 100% free local AI:**
@@ -44,6 +45,22 @@ glance https://techcrunch.com --tldr --read
 
 ## 🎯 Core Features
 
+### 🌐 **Interactive Browse Mode**
+```bash
+glance https://news.ycombinator.com --browse   # Navigate website interactively
+# Inside browse mode:
+1                                              # Navigate to link 1
+3 --tldr                                       # Navigate + get summary  
+5 --read -l fr                                # Navigate + read in French
+1 --output file.md --format markdown          # Navigate + save to file
+n                                              # Show navigation links
+e                                              # Show external links  
+a                                              # Show all links
+b                                              # Go back
+h                                              # View history
+q                                              # Quit browse mode
+```
+
 ### 📝 **Content Modes**
 ```bash
 glance <url>                  # AI summary (default)
@@ -53,6 +70,7 @@ glance <url> --eli5           # Simple explanation
 glance <url> --full           # Full content (no summary)
 glance <url> --ask "..."      # Ask specific question
 glance <url> --copy           # Copy summary to clipboard
+glance <url> --browse         # Interactive link navigation
 ```
 
 ### 🎤 **Voice & Audio**
@@ -112,6 +130,10 @@ glance <url> --free-only      # Never use paid APIs
 ## 📖 Common Use Cases
 
 ```bash
+# Interactive browsing
+glance https://news.ycombinator.com --browse       # Browse Hacker News interactively
+glance https://reddit.com/r/programming --browse   # Navigate Reddit threads
+
 # Morning news with audio
 glance https://news.ycombinator.com --tldr --read
 
@@ -135,6 +157,11 @@ glance https://news.com --output summary.md        # Markdown format
 glance https://api-docs.com --output data.json     # JSON format
 glance https://article.com --format plain --output content.txt  # Plain text
 
+# Browse mode with enhanced commands
+glance https://docs.python.org --browse
+# Inside: 5 --eli5 --read         # Navigate + explain simply + read aloud
+# Inside: 2 --output guide.md     # Navigate + save to markdown file
+
 # Batch processing
 for url in $(cat urls.txt); do
   glance "$url" --tldr --output "$(basename $url).md"
@@ -145,8 +172,9 @@ done
 
 ## 📚 All Options
 
-### **Content**
+### **Content & Navigation**
 ```bash
+--browse                      # Interactive link navigation mode
 --tldr                        # One sentence summary
 --key-points, -k              # Bullet points
 --eli5                        # Simple explanation
@@ -212,22 +240,32 @@ export OLLAMA_ENDPOINT=http://localhost:11434
 ## 🎓 Pro Tips
 
 ```bash
-# 1. Auto language detection + file saving
+# 1. Interactive workflow for research
+glance https://en.wikipedia.org/wiki/AI --browse
+# Navigate through related articles, save specific sections
+# Inside: 3 --output section.md --eli5    # Save simplified version
+
+# 2. Auto language detection + file saving
 glance https://lemonde.fr --output french-article.md   # Auto-detects French format
 
-# 2. Quick sharing workflow
+# 3. Quick sharing workflow
 glance https://article.com --tldr --copy              # Copy summary for instant sharing
 
-# 2. Format override for different use cases  
+# 4. Format override for different use cases  
 glance https://news.com --format json --output backup.md  # JSON content in .md file
 
-# 3. Use local AI
+# 5. Use local AI
 glance https://www.ayiti.ai --model llama3 --free-only
 
-# 4. Match voice to auto-detected language
+# 6. Match voice to auto-detected language
 glance https://www.ayiti.ai/fr --voice antoine --read    # French detection + voice
 
-# 5. Streaming for long content
+# 7. Browse mode power user commands
+glance https://docs.react.dev --browse
+# Inside: 2 --key-points --copy          # Navigate + extract points + copy
+# Inside: 5 --full -l es --read          # Navigate + translate + read aloud
+
+# 8. Streaming for long content
 glance https://long-article.com --stream
 ```
 

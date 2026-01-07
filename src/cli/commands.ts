@@ -3,8 +3,11 @@
  * Exports individual command functions that can be used programmatically
  */
 
+import { createInterface } from "node:readline";
 import { writeFile } from "node:fs/promises";
+import { parseArgs } from "node:util";
 import chalk from "chalk";
+import * as cheerio from "cheerio";
 import clipboard from "clipboardy";
 import {
 	extractCleanText,
@@ -62,6 +65,8 @@ export interface GlanceOptions {
 	preferQuality?: boolean;
 	debug?: boolean;
 	copy?: boolean;
+	browse?: boolean;
+	disableStdinHandling?: boolean; // For browse mode to prevent spinner interference
 }
 
 /**
@@ -86,7 +91,10 @@ export async function glance(
 	// Note: Caching temporarily disabled to eliminate corruption issues
 
 	// Fetch the webpage
-	const fetchSpinner = createSpinner("Fetching webpage...");
+	const fetchSpinner = createSpinner(
+		"Fetching webpage...",
+		options.disableStdinHandling,
+	);
 	fetchSpinner.start();
 
 	let html: string;
@@ -112,7 +120,10 @@ export async function glance(
 	}
 
 	// Extract content
-	const extractSpinner = createSpinner("Extracting content...");
+	const extractSpinner = createSpinner(
+		"Extracting content...",
+		options.disableStdinHandling,
+	);
 	extractSpinner.start();
 
 	const cleanText = extractCleanText(html);
@@ -328,6 +339,7 @@ async function handleFullContent(
 		needsTranslation
 			? "🌍 Translating and formatting full content..."
 			: "🧾 Applying smart formatting...",
+		options.disableStdinHandling,
 	);
 	fullModeSpinner.start();
 
@@ -407,7 +419,10 @@ async function summarizeContentWithRaw(
 
 	const summarizeSpinner = options.stream
 		? null
-		: createSpinner(`Processing with ${model}...`);
+		: createSpinner(
+			`Processing with ${model}...`,
+			options.disableStdinHandling,
+		);
 
 	summarizeSpinner?.start();
 
@@ -460,75 +475,6 @@ async function summarizeContentWithRaw(
 }
 
 /**
- * Summarize content using AI
- */
-async function _summarizeContent(
-	content: string,
-	url: string,
-	options: GlanceOptions & { language: string },
-): Promise<string> {
-	const model =
-		options.model ||
-		(await getDefaultModel(undefined, !!options.preferQuality));
-
-	// Show cost warning if using premium model
-	if (!options.freeOnly) {
-		await showCostWarning(model);
-	}
-
-	const summarizeSpinner = options.stream
-		? null
-		: createSpinner(`Processing with ${model}...`);
-
-	summarizeSpinner?.start();
-
-	try {
-		const summary = await withRetry(
-			() =>
-				summarize(content, {
-					model,
-					tldr: options.tldr,
-					keyPoints: options.keyPoints,
-					eli5: options.eli5,
-					language: options.language,
-					stream: options.stream,
-					maxTokens: options.maxTokens,
-					customQuestion: options.customQuestion,
-				}),
-			{
-				attempts: 2,
-				onRetry: (attempt) => {
-					if (summarizeSpinner) {
-						summarizeSpinner.text = `Processing with ${model}... (retry ${attempt})`;
-					}
-				},
-			},
-		);
-
-		summarizeSpinner?.succeed("Summary generated successfully");
-
-		// Clean and format the summary
-		const cleanSummary = sanitizeOutputForTerminal(sanitizeAIResponse(summary));
-		const formattedSummary = formatOutput(cleanSummary, {
-			format: getOutputFormat(options),
-			url: url,
-			customQuestion: options.customQuestion,
-		});
-
-		return formattedSummary;
-	} catch (error: unknown) {
-		summarizeSpinner?.fail("Failed to generate summary");
-		throw new GlanceError(
-			error instanceof Error ? error.message : String(error),
-			ErrorCodes.SUMMARIZE_FAILED,
-			"Failed to generate summary. The AI service might be unavailable.",
-			true,
-			"Try a different model with --model or check your API keys",
-		);
-	}
-}
-
-/**
  * Handle voice synthesis
  */
 async function handleVoiceSynthesis(
@@ -541,6 +487,7 @@ async function handleVoiceSynthesis(
 		if (options.audioOutput) {
 			const audioSpinner = createSpinner(
 				`🎵 Generating audio file: ${options.audioOutput}`,
+				options.disableStdinHandling,
 			);
 			audioSpinner.start();
 
@@ -559,6 +506,7 @@ async function handleVoiceSynthesis(
 		} else {
 			const readSpinner = createSpinner(
 				`🎤 Generating speech and preparing to read aloud...`,
+				options.disableStdinHandling,
 			);
 			readSpinner.start();
 
@@ -708,9 +656,13 @@ export async function checkServicesCommand(): Promise<void> {
 					process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
 				const response = await fetch(`${endpoint}/api/tags`);
 				if (response.ok) {
-					const data = await response.json();
+					const data = (await response.json()) as {
+						models: { name: string }[];
+					};
 					ollamaModels =
-						data.models?.map((m: { name: string }) => m.name) || [];
+						(data as { models: { name: string }[] }).models?.map(
+							(m: { name: string }) => m.name,
+						) || [];
 				}
 			} catch {
 				// Ignore model fetch errors
@@ -851,4 +803,662 @@ export async function listModelsCommand(): Promise<void> {
 		console.log(chalk.cyan("  ollama serve"));
 		throw error;
 	}
+}
+
+/**
+ * Enhanced link extraction with categorization
+ */
+function extractCategorizedLinks(html: string, baseUrl: string) {
+	const $ = cheerio.load(html);
+	const seenUrls = new Set<string>();
+
+	// Simplified categories: Navigation (same domain) and External (different domain)
+	const categories = {
+		navigation: [] as Array<{ href: string; text: string }>,
+		external: [] as Array<{ href: string; text: string }>,
+	};
+
+	// For backwards compatibility, keep these empty
+	const emptyCategories = {
+		content: [] as Array<{ href: string; text: string }>,
+		footer: [] as Array<{ href: string; text: string }>,
+	};
+
+	// Helper function to process links
+	const processLink = (element: any) => {
+		const $element = $(element);
+		let href = $element.attr("href")?.trim() || "";
+
+		// Skip invalid links
+		if (
+			!href ||
+			href.startsWith("javascript:") ||
+			href.startsWith("mailto:") ||
+			href.startsWith("tel:") ||
+			href === "#" ||
+			href.startsWith("#")
+		) {
+			return;
+		}
+
+		// Extract clean text from the link element
+		let text = "";
+		const rawText = $element.text().trim() || "";
+
+		// Check if text contains CSS class names or other code artifacts
+		const isInvalidText = (t: string) => {
+			return (
+				t.startsWith(".css-") ||
+				t.includes("{") ||
+				t.includes("}") ||
+				t.includes("@media") ||
+				t.includes("::") ||
+				t.includes("var(--") ||
+				/^\.[a-z]+-[a-z0-9]+/i.test(t) || // CSS class pattern
+				/^#[a-z]+-[a-z0-9]+/i.test(t)
+			); // CSS ID pattern
+		};
+
+		if (!isInvalidText(rawText)) {
+			text = rawText;
+		} else {
+			// Try to extract clean text by looking for actual text nodes
+			const imgAlt = $element.find("img").attr("alt") || "";
+			const ariaLabel = $element.attr("aria-label") || "";
+			const title = $element.attr("title") || "";
+
+			// Priority: aria-label > title > img alt > extracted text
+			if (ariaLabel && !isInvalidText(ariaLabel)) {
+				text = ariaLabel;
+			} else if (title && !isInvalidText(title)) {
+				text = title;
+			} else if (imgAlt && !isInvalidText(imgAlt)) {
+				text = imgAlt;
+			} else {
+				// Try to extract text without CSS elements
+				const cleanedElement = $element.clone();
+				cleanedElement.find("style").remove();
+				cleanedElement.find('[class*="css-"]').remove();
+				const cleanText = cleanedElement.text().trim() || "";
+
+				if (cleanText && !isInvalidText(cleanText)) {
+					text = cleanText;
+				}
+			}
+		}
+
+		// If still no valid text, create meaningful text from URL
+		if (!text || isInvalidText(text)) {
+			try {
+				const url = new URL(
+					href.startsWith("http") ? href : new URL(href, baseUrl).href,
+				);
+
+				// Special handling for known domains
+				const hostname = url.hostname.replace("www.", "");
+				const pathname = url.pathname;
+
+				// Extract meaningful name from pathname
+				if (pathname && pathname !== "/") {
+					const pathParts = pathname
+						.split("/")
+						.filter((p) => p && !p.match(/^\d+$/)); // Filter out numbers
+					if (pathParts.length > 0) {
+						const lastPart = pathParts[pathParts.length - 1] || "";
+						// Clean up the path part
+						text = lastPart
+							.replace(/[-_]/g, " ")
+							.replace(/\.[^.]+$/, "") // Remove file extension
+							.split(" ")
+							.map(
+								(word) =>
+									word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+							)
+							.join(" ");
+					}
+				}
+
+				// If still no text, use the domain name
+				if (!text) {
+					text = hostname.charAt(0).toUpperCase() + hostname.slice(1);
+				}
+			} catch {
+				text = "Link";
+			}
+		}
+
+		// Final cleanup - remove extra whitespace and truncate if too long
+		text = text.replace(/\s+/g, " ").trim();
+		if (text.length > 100) {
+			text = text.substring(0, 97) + "...";
+		}
+
+		// Resolve relative URLs
+		try {
+			if (!href.startsWith("http")) {
+				href = new URL(href, baseUrl).href;
+			}
+		} catch {
+			return; // Skip invalid URLs
+		}
+
+		// Only accept HTTPS links for security
+		if (!href.startsWith("https://")) {
+			return;
+		}
+
+		// Remove query strings for cleaner URLs
+		try {
+			const url = new URL(href);
+			href = `${url.protocol}//${url.hostname}${url.pathname}`;
+			// Remove trailing slash if it's just the domain
+			if (url.pathname === "/") {
+				href = `${url.protocol}//${url.hostname}`;
+			}
+		} catch {
+			// If URL parsing fails, use original
+		}
+
+		// Check if we've already seen this URL (deduplication)
+		if (seenUrls.has(href)) {
+			return;
+		}
+		seenUrls.add(href);
+
+		// Determine if link is internal (navigation) or external
+		const linkUrl = new URL(href);
+		const base = new URL(baseUrl);
+
+		// Same domain = Navigation link
+		// Different domain = External link
+		const isSameDomain = linkUrl.hostname === base.hostname;
+
+		const linkData = { href, text };
+
+		if (isSameDomain) {
+			categories.navigation.push(linkData);
+		} else {
+			categories.external.push(linkData);
+		}
+	};
+
+	// Process ALL links on the page exactly once
+	$("a[href]").each((_, el) => {
+		processLink(el);
+	});
+
+	// Return categories with backwards-compatible structure
+	return {
+		navigation: categories.navigation,
+		external: categories.external,
+		content: emptyCategories.content,
+		footer: emptyCategories.footer,
+	};
+}
+
+/**
+ * Browse command - interactive link exploration
+ */
+export async function browseCommand(url: string): Promise<void> {
+	console.log(chalk.bold("🌐 Browse Mode - Interactive Link Navigation"));
+	console.log(
+		chalk.dim("Navigate through links on the webpage interactively\n"),
+	);
+
+	try {
+		// Fetch the initial page
+		const fetchSpinner = createSpinner("Fetching webpage...");
+		fetchSpinner.start();
+
+		const html = await fetchPage(url, { fullRender: false });
+		fetchSpinner.succeed("Webpage fetched");
+
+		// Extract links with categorization
+		const extractSpinner = createSpinner(
+			"Extracting and categorizing links...",
+		);
+		extractSpinner.start();
+
+		const categorizedLinks = extractCategorizedLinks(html, url);
+		const allLinks = [
+			...categorizedLinks.navigation,
+			...categorizedLinks.content,
+			...categorizedLinks.external,
+			...categorizedLinks.footer,
+		];
+		extractSpinner.succeed(`Found ${allLinks.length} links`);
+
+		if (allLinks.length === 0) {
+			console.log(chalk.yellow("No links found on this page."));
+			return;
+		}
+
+		// Show initial page info
+		const metadata = extractMetadata(html);
+		const pageTitle = metadata.title || url;
+		console.log(chalk.bold(`\nCurrent Page: ${pageTitle}`));
+		if (metadata.description) {
+			console.log(chalk.dim(`Description: ${metadata.description}`));
+		}
+		console.log("");
+
+		// Interactive link selection
+		await interactiveLinkNavigation(categorizedLinks, url, pageTitle);
+	} catch (error: unknown) {
+		throw new GlanceError(
+			error instanceof Error ? error.message : String(error),
+			ErrorCodes.FETCH_FAILED,
+			"Failed to start browse mode",
+			false,
+		);
+	}
+}
+
+/**
+ * Interactive link navigation
+ */
+async function interactiveLinkNavigation(
+	categorizedLinks: {
+		navigation: Array<{ href: string; text: string }>;
+		content: Array<{ href: string; text: string }>;
+		footer: Array<{ href: string; text: string }>;
+		external: Array<{ href: string; text: string }>;
+	},
+	currentUrl: string,
+	pageTitle: string,
+): Promise<void> {
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	const browsingHistory: string[] = [currentUrl];
+	let currentCategorizedLinks = categorizedLinks;
+	let currentPage = currentUrl;
+	let currentPageTitle = pageTitle;
+	let displayMode: "all" | "nav" | "external" = "all";
+
+	const displayLinks = () => {
+		let linkIndex = 1;
+		const linkMap = new Map<number, { href: string; text: string }>();
+
+		// Show links based on display mode
+		if (displayMode === "all" || displayMode === "nav") {
+			if (currentCategorizedLinks.navigation.length > 0) {
+				if (displayMode === "nav") {
+					console.log(
+						chalk.magenta(
+							`\n🧭 Navigation Links Only (${currentCategorizedLinks.navigation.length} total):`,
+						),
+					);
+				} else {
+					console.log(
+						chalk.magenta(
+							`\nNavigation Links (${currentCategorizedLinks.navigation.length} total):`,
+						),
+					);
+				}
+				currentCategorizedLinks.navigation.forEach((link) => {
+					const displayText = link.text || "Link";
+					console.log(
+						chalk.cyan(`  ${linkIndex}. `) + chalk.blue.underline(link.href),
+					);
+					linkMap.set(linkIndex, { href: link.href, text: link.text });
+					linkIndex++;
+				});
+			}
+		}
+
+		if (displayMode === "all" || displayMode === "external") {
+			if (currentCategorizedLinks.external.length > 0) {
+				if (displayMode === "external") {
+					console.log(
+						chalk.yellow(
+							`\n🌍 External Links Only (${currentCategorizedLinks.external.length} total):`,
+						),
+					);
+				} else {
+					console.log(
+						chalk.yellow(
+							`\nExternal Links (${currentCategorizedLinks.external.length} total):`,
+						),
+					);
+				}
+				currentCategorizedLinks.external.forEach((link) => {
+					const displayText = link.text || "Link";
+					console.log(
+						chalk.cyan(`  ${linkIndex}. `) + chalk.blue.underline(link.href),
+					);
+					linkMap.set(linkIndex, { href: link.href, text: link.text });
+					linkIndex++;
+				});
+			}
+		}
+
+		return linkMap;
+	};
+
+	let lastCommandResult: string | null = null;
+	let lastCommand: string | null = null;
+
+	while (true) {
+		// Clear screen and show current state
+		console.clear();
+
+		// Show current page header
+		console.log(chalk.bold.cyan(`\nCurrent Page: ${pageTitle}`));
+		// console.log(chalk.dim("─".repeat(60)));
+
+		// Display links
+		const linkMap = displayLinks();
+
+		const totalDisplayed = linkMap.size;
+
+		// If there was a last command, show it and its results here
+		if (lastCommand && lastCommandResult) {
+			console.log("");
+			console.log(chalk.dim("─".repeat(60)));
+			console.log(chalk.cyan("Last command: ") + chalk.yellow(lastCommand));
+			console.log("");
+			console.log(lastCommandResult);
+			console.log(chalk.dim("─".repeat(60)));
+		}
+
+		// Show commands menu at the bottom
+		console.log(chalk.dim("\nCommands:"));
+		console.log(chalk.dim(`  1-${totalDisplayed}: Navigate to link`));
+		console.log(chalk.dim("  'n': Show only navigation links"));
+		console.log(chalk.dim("  'e': Show only external links"));
+		console.log(chalk.dim("  'a': Show all links"));
+		console.log(chalk.dim("  'b': Go back"));
+		console.log(chalk.dim("  'h': History"));
+		console.log(chalk.dim("  'q': Quit"));
+		console.log(chalk.dim("\nEnhanced Commands:"));
+		console.log(
+			chalk.dim("  '5 --read -l fr': Navigate to link 5 and read in French"),
+		);
+		console.log(
+			chalk.dim("  '3 --tldr --copy': Navigate to link 3, get TLDR and copy"),
+		);
+		console.log(
+			chalk.dim("  '1 --eli5 -m gemini': Navigate to link 1, ELI5 with Gemini"),
+		);
+
+		let input: string;
+		try {
+			input = await new Promise<string>((resolve, reject) => {
+				rl.question(chalk.yellow("\n> "), (answer) => {
+					resolve(answer);
+				});
+				// Check if readline was closed
+				if ((rl as any).closed) {
+					reject(new Error("Readline interface was closed"));
+				}
+			});
+		} catch (error) {
+			// Readline was closed, break out of the loop gracefully
+			console.log(chalk.yellow("Browse mode ended"));
+			break;
+		}
+
+		const command = input.trim().toLowerCase();
+
+		if (command === "q" || command === "quit") {
+			console.log(chalk.green("\n👋 Exiting browse mode"));
+			break;
+		}
+
+		if (command === "n") {
+			displayMode = "nav";
+			lastCommand = null; // Clear last command for navigation changes
+			lastCommandResult = null;
+			continue;
+		}
+
+		if (command === "e") {
+			displayMode = "external";
+			lastCommand = null; // Clear last command for navigation changes
+			lastCommandResult = null;
+			continue;
+		}
+
+		if (command === "a") {
+			displayMode = "all";
+			lastCommand = null; // Clear last command for navigation changes
+			lastCommandResult = null;
+			continue;
+		}
+
+
+		if (command === "b" || command === "back") {
+			if (browsingHistory.length > 1) {
+				browsingHistory.pop();
+				const previousPage = browsingHistory[browsingHistory.length - 1];
+
+				try {
+					const html = await fetchPage(previousPage!, { fullRender: false });
+					currentCategorizedLinks = extractCategorizedLinks(
+						html,
+						previousPage!,
+					);
+					currentPage = previousPage!;
+					displayMode = "all";
+
+					const metadata = extractMetadata(html);
+					currentPageTitle = metadata.title || currentPage;
+					pageTitle = currentPageTitle; // Update page title
+
+					// Clear last command after navigation
+					lastCommand = null;
+					lastCommandResult = null;
+				} catch (error) {
+					lastCommand = "b";
+					lastCommandResult = chalk.red("Failed to go back to previous page");
+					browsingHistory.push(currentPage);
+				}
+			} else {
+				lastCommand = "b";
+				lastCommandResult = chalk.yellow("No previous page in history");
+			}
+			continue;
+		}
+
+		if (command === "h" || command === "history") {
+			let historyOutput = chalk.bold("📚 Browsing History:\n");
+			browsingHistory.forEach((url, index) => {
+				const indicator = index === browsingHistory.length - 1 ? "→ " : "  ";
+				historyOutput += chalk.cyan(indicator) + chalk.white(url) + "\n";
+			});
+			lastCommand = "h";
+			lastCommandResult = historyOutput.trim();
+			continue;
+		}
+
+		// Handle numeric input for link navigation with optional CLI options
+		// Parse input to support commands like "5 --read -l fr"
+		const inputParts = input.trim().split(/\s+/);
+		const linkNumber = Number.parseInt(inputParts[0] || "");
+
+		if (linkNumber >= 1 && linkNumber <= totalDisplayed) {
+			const selectedLink = linkMap.get(linkNumber);
+			if (selectedLink) {
+				const targetUrl = new URL(selectedLink.href, currentPage).href;
+
+				// Check if additional CLI options were provided
+				if (inputParts.length > 1) {
+					// Parse CLI options after the link number
+					try {
+						const cliArgs = inputParts.slice(1);
+						const { values } = parseArgs({
+							args: cliArgs,
+							allowPositionals: false,
+							options: {
+								// Summary options
+								tldr: { type: "boolean" },
+								"key-points": { type: "boolean" },
+								eli5: { type: "boolean" },
+								full: { type: "boolean" },
+								ask: { type: "string", short: "q" },
+
+								// Language options
+								language: { type: "string", short: "l" },
+
+								// Voice options
+								read: { type: "boolean", short: "r" },
+								voice: { type: "string" },
+								"audio-output": { type: "string" },
+
+								// AI options
+								model: { type: "string", short: "m" },
+								stream: { type: "boolean" },
+								"max-tokens": { type: "string" },
+
+								// Service options
+								"free-only": { type: "boolean" },
+								"prefer-quality": { type: "boolean" },
+
+								// Format & Output options
+								format: { type: "string" },
+								output: { type: "string", short: "o" },
+								copy: { type: "boolean", short: "c" },
+
+								// Advanced options
+								"full-render": { type: "boolean" },
+								screenshot: { type: "string" },
+								metadata: { type: "boolean" },
+								links: { type: "boolean" },
+							},
+						});
+
+						console.log(chalk.blue(`📍 Processing: ${targetUrl}`));
+
+						// Show which options are being applied
+						const activeOptions = [];
+						if (values.tldr) activeOptions.push("TLDR");
+						if (values.eli5) activeOptions.push("ELI5");
+						if (values["key-points"]) activeOptions.push("Key Points");
+						if (values.full) activeOptions.push("Full Content");
+						if (values.read) activeOptions.push("Read Aloud");
+						if (values.language)
+							activeOptions.push(`Language: ${values.language}`);
+						if (values.copy) activeOptions.push("Copy to Clipboard");
+						if (values.model) activeOptions.push(`Model: ${values.model}`);
+
+						if (activeOptions.length > 0) {
+							console.log(chalk.dim(`🔧 Options: ${activeOptions.join(", ")}`));
+						}
+						console.log("");
+
+						// Navigate and apply glance with options
+						const glanceOptions: GlanceOptions = {
+							model: values.model,
+							language: values.language,
+							tldr: values.tldr,
+							keyPoints: values["key-points"],
+							eli5: values.eli5,
+							full: values.full,
+							customQuestion: values.ask,
+							stream: values.stream,
+							maxTokens: values["max-tokens"]
+								? Number.parseInt(values["max-tokens"])
+								: undefined,
+							format: values.format,
+							output: values.output,
+							screenshot: values.screenshot,
+							fullRender: values["full-render"],
+							metadata: values.metadata,
+							links: values.links,
+							read: values.read,
+							voice: values.voice,
+							audioOutput: values["audio-output"],
+							freeOnly: values["free-only"],
+							preferQuality: values["prefer-quality"],
+							copy: values.copy,
+							disableStdinHandling: true, // Prevent spinner from interfering with readline
+						};
+
+						// Run glance command with the options
+						const result = await glance(targetUrl, glanceOptions);
+
+						// Store the result for display
+						lastCommand = inputParts[0] + " " + inputParts.slice(1).join(" ");
+
+						if (glanceOptions.output) {
+							// File was saved, show confirmation
+							lastCommandResult = chalk.green(
+								`✅ Content saved to ${glanceOptions.output}`,
+							);
+						} else if (
+							!glanceOptions.stream &&
+							!glanceOptions.read &&
+							!glanceOptions.audioOutput
+						) {
+							// Show the result content
+							lastCommandResult = chalk.bold.green("🎯 Result:\n") + result;
+						} else {
+							lastCommandResult = chalk.green("✅ Processing completed");
+						}
+
+						// Don't update navigation state when using options - just process and return to current page
+						continue;
+					} catch (parseError) {
+						console.log(
+							chalk.red(
+								`Invalid options: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+							),
+						);
+						console.log(chalk.dim("Example: 5 --read -l fr"));
+						continue;
+					}
+				} else {
+					// Regular navigation with default summary (like normal glance behavior)
+					console.log(chalk.blue(`📍 Navigating to: ${targetUrl}`));
+
+					try {
+						const html = await fetchPage(targetUrl, { fullRender: false });
+						const newCategorizedLinks = extractCategorizedLinks(
+							html,
+							targetUrl,
+						);
+
+						browsingHistory.push(targetUrl);
+						currentCategorizedLinks = newCategorizedLinks;
+						currentPage = targetUrl;
+						displayMode = "all";
+
+						const metadata = extractMetadata(html);
+						currentPageTitle = metadata.title || targetUrl;
+						pageTitle = currentPageTitle; // Update page title
+						const newTotalLinks =
+							newCategorizedLinks.navigation.length +
+							newCategorizedLinks.external.length;
+
+						// Get summary like normal glance behavior
+						const result = await glance(targetUrl, {
+							tldr: true,
+							disableStdinHandling: true,
+						});
+
+						// Store the result for display
+						lastCommand = inputParts[0] || "";
+						lastCommandResult = chalk.bold.green("📄 Summary:\n") + result;
+					} catch (error) {
+						console.log(chalk.red("Failed to navigate to that link"));
+					}
+				}
+			}
+		} else if (linkNumber > 0) {
+			console.log(
+				chalk.yellow(`Invalid link number. Please choose 1-${totalDisplayed}`),
+			);
+		} else {
+			console.log(
+				chalk.yellow(
+					"Invalid command. Type 'q' to quit or a number to navigate.",
+				),
+			);
+		}
+	}
+
+	rl.close();
 }

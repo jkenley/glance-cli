@@ -5,9 +5,29 @@ All notable changes to glance-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.15.0] - 2026-01-06
+## [0.16.0] - 2026-01-06
 
-### 🚀 Added: Comprehensive Local Model Support
+### 🌐 Added: Enhanced Browse Mode
+- **Interactive Link Navigation**: Browse websites interactively with automatic summarization
+- **Enhanced Commands**: Navigate with options like `3 --tldr`, `5 --read -l fr`, `1 --eli5 -m gemini`
+- **Automatic Summaries**: Every navigation shows a TLDR summary by default (like normal glance)
+- **File Output Support**: Save summaries with `3 --output file.md --format markdown` or `3 --output data.json --format json`
+- **Smart UX Design**: 
+  - Last command and results show at bottom before prompt (no scrolling needed)
+  - Clear screen refresh on each iteration for clean interface
+  - Simple separator design with consistent formatting
+- **Seamless Navigation**: Browse mode continues after enhanced commands without exit bugs
+- **Command Categories**:
+  - Navigation: `1-24` (navigate to link), `n` (nav links), `e` (external), `a` (all)
+  - Utility: `b` (back), `h` (history), `q` (quit)
+  - Enhanced: All glance options work with link numbers
+
+### 🐛 Fixed
+- **Browse Mode Exit Bug**: Fixed spinners interfering with readline interface using `discardStdin: false`
+- **File Output Confirmation**: Now shows `✅ Content saved to filename` instead of generic "completed"
+- **Regular Navigation Summary**: Fixed missing summaries when just typing link numbers
+
+### 🚀 Enhanced from v0.15.0: Comprehensive Local Model Support
 - **Fixed gpt-oss model compatibility**: Added special handling for gpt-oss models that use "thinking" field in responses
 - **Tested and verified 7 Ollama models**:
   - ✅ llama3:latest - Fast, reliable general-purpose model
@@ -19,15 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **100% test success rate**: All models work with --tldr, --key-points, and --eli5 modes
 - **Improved response parsing**: Better extraction of meaningful content from various model response formats
 
-### 🐛 Fixed
-- **gpt-oss models now properly route to Ollama**: Previously failing gpt-oss models now correctly use local Ollama endpoint
-- **Response extraction for thinking-based models**: Models that output reasoning in "thinking" field now have their responses properly extracted
-- **Consistent model detection**: Enhanced provider detection to correctly identify local vs cloud models
-
 ### 📝 Documentation
-- Added comprehensive list of tested and supported local models in README
-- Included model-specific notes for optimal usage
-- Updated examples with various model options
+- Added comprehensive browse mode usage examples
+- Updated README with interactive navigation features
+- Included enhanced command syntax and options
 
 ## [0.14.0] - 2026-01-06
 

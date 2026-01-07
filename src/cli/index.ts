@@ -6,6 +6,7 @@
 import { parseArgs } from "node:util";
 import chalk from "chalk";
 import {
+	browseCommand,
 	checkServicesCommand,
 	type GlanceOptions,
 	glance,
@@ -13,13 +14,11 @@ import {
 	listVoicesCommand,
 } from "./commands";
 import { formatErrorMessage, showHelp, showVersion } from "./display";
-// Import modules
 import { GlanceError } from "./errors";
 import { logger } from "./logger";
 import { validateLanguage, validateMaxTokens, validateURL } from "./validators";
 
 export * from "./commands";
-// Export all modules for programmatic use
 export * from "./config";
 export * from "./display";
 export * from "./errors";
@@ -78,6 +77,7 @@ function parseCliArgs() {
 				screenshot: { type: "string" },
 				metadata: { type: "boolean" },
 				links: { type: "boolean" },
+				browse: { type: "boolean" },
 				debug: { type: "boolean" },
 			},
 		});
@@ -124,6 +124,32 @@ export async function runCli() {
 
 		if (values["list-models"]) {
 			await listModelsCommand();
+			process.exit(0);
+		}
+
+		// Handle browse mode
+		if (values.browse) {
+			// Validate URL is provided for browse mode
+			if (positionals.length === 0) {
+				console.error(chalk.red("Error: No URL provided for browse mode"));
+				console.log(chalk.dim("Usage: glance <url> --browse"));
+				process.exit(1);
+			}
+
+			const url = positionals[0];
+			if (!url) {
+				console.error(chalk.red("Error: URL is required for browse mode."));
+				process.exit(1);
+			}
+
+			// Validate URL format
+			const urlValidation = validateURL(url);
+			if (!urlValidation.valid) {
+				console.error(chalk.red(`Error: ${urlValidation.error}`));
+				process.exit(1);
+			}
+
+			await browseCommand(url);
 			process.exit(0);
 		}
 
@@ -194,6 +220,7 @@ export async function runCli() {
 			preferQuality: values["prefer-quality"],
 			debug: values.debug,
 			copy: values.copy,
+			browse: values.browse,
 		};
 
 		// Run the main command

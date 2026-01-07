@@ -1,0 +1,8 @@
+{
+	"servers": {
+		"bun": {
+			"command": "bunx",
+			"args": ["-y", "mcp-bun@latest"]
+		}
+	}
+}
