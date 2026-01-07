@@ -1187,7 +1187,7 @@ async function interactiveLinkNavigation(
 		let input: string;
 		try {
 			input = await new Promise<string>((resolve, reject) => {
-				rl.question(chalk.yellow("\n> "), (answer) => {
+				rl.question(chalk.green("\n>>> "), (answer) => {
 					resolve(answer);
 				});
 				// Check if readline was closed
