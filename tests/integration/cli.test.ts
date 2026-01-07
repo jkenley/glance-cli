@@ -3,8 +3,8 @@
  * These tests use real URLs and test actual functionality end-to-end
  */
 
-import { beforeAll, describe, expect, test } from "bun:test";
-import { type GlanceOptions, glance } from "../../src/cli/commands";
+import { describe, expect, test } from "bun:test";
+import { glance } from "../../src/cli/commands";
 
 // Test URLs - using reliable, stable websites
 const TEST_URLS = {
@@ -159,7 +159,7 @@ describe(
 
 				expect(result).toBeDefined();
 				// Should be valid JSON
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed).toHaveProperty("url");
 				expect(parsed).toHaveProperty("content");
 				expect(parsed).toHaveProperty("metadata");
@@ -215,7 +215,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.metadata).toBeDefined();
 				expect(parsed.metadata.title).toBeDefined();
 			},
@@ -231,7 +231,7 @@ describe(
 				});
 
 				expect(result).toBeDefined();
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				// Should have links property or link information
 				expect(result).toContain("http");
 			},
@@ -369,7 +369,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.type).toBe("full_content");
 				expect(parsed.content).toBeDefined();
 				expect(parsed.content.length).toBeGreaterThan(0);
@@ -386,7 +386,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.question).toBe("What is this page about?");
 			},
 			TEST_TIMEOUT,

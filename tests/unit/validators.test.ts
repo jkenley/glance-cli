@@ -167,7 +167,7 @@ describe("validateAPIKeys", () => {
 	});
 
 	test("should validate OpenAI API key format", async () => {
-		process.env.OPENAI_API_KEY = "sk-proj-" + "x".repeat(40);
+		process.env.OPENAI_API_KEY = `sk-proj-${"x".repeat(40)}`;
 		const result = await validateAPIKeys("openai");
 		expect(result.valid).toBe(true);
 	});

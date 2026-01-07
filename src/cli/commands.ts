@@ -3,8 +3,8 @@
  * Exports individual command functions that can be used programmatically
  */
 
-import { createInterface } from "node:readline";
 import { writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import chalk from "chalk";
 import * as cheerio from "cheerio";
@@ -420,9 +420,9 @@ async function summarizeContentWithRaw(
 	const summarizeSpinner = options.stream
 		? null
 		: createSpinner(
-			`Processing with ${model}...`,
-			options.disableStdinHandling,
-		);
+				`Processing with ${model}...`,
+				options.disableStdinHandling,
+			);
 
 	summarizeSpinner?.start();
 
@@ -1229,7 +1229,6 @@ async function interactiveLinkNavigation(
 			continue;
 		}
 
-
 		if (command === "b" || command === "back") {
 			if (browsingHistory.length > 1) {
 				browsingHistory.pop();
@@ -1398,9 +1397,6 @@ async function interactiveLinkNavigation(
 						} else {
 							lastCommandResult = chalk.green("✅ Processing completed");
 						}
-
-						// Don't update navigation state when using options - just process and return to current page
-						continue;
 					} catch (parseError) {
 						console.log(
 							chalk.red(
@@ -1408,7 +1404,6 @@ async function interactiveLinkNavigation(
 							),
 						);
 						console.log(chalk.dim("Example: 5 --read -l fr"));
-						continue;
 					}
 				} else {
 					// Regular navigation with default summary (like normal glance behavior)

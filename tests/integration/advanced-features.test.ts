@@ -56,7 +56,7 @@ describe(
 					expect(parsed).toHaveProperty("content");
 				} else {
 					// If not saved to file, result should be valid JSON
-					const parsed = JSON.parse(result);
+					const _parsed = JSON.parse(result);
 					expect(parsed).toHaveProperty("url");
 				}
 			},
@@ -171,7 +171,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.metadata).toBeDefined();
 				expect(parsed.metadata.title).toBeDefined();
 				expect(parsed.metadata.title.length).toBeGreaterThan(0);
@@ -202,7 +202,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.metadata).toBeDefined();
 			},
 			TEST_TIMEOUT,
@@ -223,7 +223,7 @@ describe(
 				});
 
 				expect(result).toBeDefined();
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				// Should contain link information
 				expect(result).toContain("http");
 			},
@@ -239,7 +239,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed).toBeDefined();
 			},
 			TEST_TIMEOUT,
@@ -270,7 +270,7 @@ describe(
 					} else {
 						console.log("⚠️  Screenshot not created (puppeteer not available)");
 					}
-				} catch (error) {
+				} catch (_error) {
 					// Screenshot feature is optional
 					console.log("⚠️  Screenshot feature not available:", error);
 				}
@@ -294,10 +294,10 @@ describe(
 						format: "json",
 					});
 
-					const parsed = JSON.parse(result);
+					const _parsed = JSON.parse(result);
 					expect(parsed.content).toBeDefined();
 					expect(parsed.content.length).toBeGreaterThan(0);
-				} catch (error) {
+				} catch (_error) {
 					// Full render requires puppeteer which is optional
 					console.log("⚠️  Full render not available (puppeteer not installed)");
 				}
@@ -317,7 +317,7 @@ describe(
 				const outputFile = "/tmp/glance-test-combined.json";
 				filesToCleanup.push(outputFile);
 
-				const result = await glance(TEST_URLS.richMetadata, {
+				const _result = await glance(TEST_URLS.richMetadata, {
 					full: true,
 					metadata: true,
 					links: true,
@@ -420,7 +420,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.content).toBeDefined();
 				// Even minimal pages should have some content
 				expect(parsed.content.length).toBeGreaterThan(0);
@@ -436,7 +436,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.url).toContain("?test=param");
 			},
 			TEST_TIMEOUT,
@@ -450,7 +450,7 @@ describe(
 					format: "json",
 				});
 
-				const parsed = JSON.parse(result);
+				const _parsed = JSON.parse(result);
 				expect(parsed.url).toContain("example.com");
 			},
 			TEST_TIMEOUT,
