@@ -195,10 +195,14 @@ export async function glance(
 
 	// Handle full content mode (no summarization)
 	if (options.full) {
-		const fullContent = await handleFullContent(cleanText, {
-			...options,
-			language,
-		});
+		const fullContent = await handleFullContent(
+			cleanText,
+			{
+				...options,
+				language,
+			},
+			Date.now() - startTime,
+		);
 
 		// Note: Caching disabled
 
@@ -210,6 +214,7 @@ export async function glance(
 		cleanText,
 		url,
 		{ ...options, language },
+		Date.now() - startTime,
 	);
 
 	// Note: Caching disabled
@@ -330,6 +335,7 @@ async function copyToClipboard(content: string): Promise<void> {
 async function handleFullContent(
 	content: string,
 	options: GlanceOptions & { language: string },
+	processingTimeMs?: number,
 ): Promise<string> {
 	let finalContent = content;
 	const needsTranslation = options.language && options.language !== "en";
@@ -390,6 +396,7 @@ async function handleFullContent(
 		format: getOutputFormat(options),
 		url: "full-content",
 		isFullContent: true,
+		processingTime: processingTimeMs,
 	});
 
 	// Save to file if output specified
@@ -407,6 +414,7 @@ async function summarizeContentWithRaw(
 	content: string,
 	url: string,
 	options: GlanceOptions & { language: string },
+	processingTimeMs?: number,
 ): Promise<{ rawSummary: string; formattedSummary: string }> {
 	const model =
 		options.model ||
@@ -420,9 +428,9 @@ async function summarizeContentWithRaw(
 	const summarizeSpinner = options.stream
 		? null
 		: createSpinner(
-			`Processing with ${model}...`,
-			options.disableStdinHandling,
-		);
+				`Processing with ${model}...`,
+				options.disableStdinHandling,
+			);
 
 	summarizeSpinner?.start();
 
@@ -459,6 +467,7 @@ async function summarizeContentWithRaw(
 			format: getOutputFormat(options),
 			url: url,
 			customQuestion: options.customQuestion,
+			processingTime: processingTimeMs,
 		});
 
 		return { rawSummary: cleanSummary, formattedSummary };
@@ -1184,7 +1193,7 @@ async function interactiveLinkNavigation(
 			chalk.dim("  '3 --eli5 -m gemini': Navigate to link 3, ELI5 with Gemini"),
 		);
 
-		console.log("")
+		console.log("");
 
 		let input: string;
 		try {
@@ -1192,7 +1201,7 @@ async function interactiveLinkNavigation(
 				rl.question(chalk.green(" >>> "), (answer) => {
 					resolve(answer);
 				});
-				
+
 				// Check if readline was closed
 				if ((rl as any).closed) {
 					reject(new Error("Readline interface was closed"));
