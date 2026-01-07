@@ -1175,13 +1175,13 @@ async function interactiveLinkNavigation(
 		console.log(chalk.dim("  'q': Quit"));
 		console.log(chalk.dim("\nEnhanced Commands:"));
 		console.log(
-			chalk.dim("  '5 --read -l fr': Navigate to link 5 and read in French"),
+			chalk.dim("  '1 --read -l fr': Navigate to link 1 and read in French"),
 		);
 		console.log(
-			chalk.dim("  '3 --tldr --copy': Navigate to link 3, get TLDR and copy"),
+			chalk.dim("  '2 --tldr --copy': Navigate to link 2, get TLDR and copy"),
 		);
 		console.log(
-			chalk.dim("  '1 --eli5 -m gemini': Navigate to link 1, ELI5 with Gemini"),
+			chalk.dim("  '3 --eli5 -m gemini': Navigate to link 3, ELI5 with Gemini"),
 		);
 
 		let input: string;
