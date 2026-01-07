@@ -40,3 +40,7 @@ next-features/
 model-test-results.md
 test-all-models.sh
 check-analytics.sh
+
+# Llamafile models
+*.llamafile
+llava-v1.5-7b-q4.llamafile

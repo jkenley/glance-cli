@@ -1,100 +1,102 @@
 {
-	"name": "glance-cli",
-	"version": "0.16.1",
-	"author": {
-		"name": "Kenley Jean",
-		"email": "alo@jkenley.me",
-		"url": "https://github.com/jkenley"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/jkenley/glance-cli.git"
-	},
-	"dependencies": {
-		"@elevenlabs/elevenlabs-js": "^2.29.0",
-		"@google/genai": "^1.34.0",
-		"chalk": "^5.6.2",
-		"cheerio": "^1.1.2",
-		"clipboardy": "^5.0.2",
-		"openai": "^6.15.0",
-		"ora": "^9.0.0"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.3.11",
-		"@types/node": "^25.0.3",
-		"typescript": "^5.9.3"
-	},
-	"exports": {
-		".": {
-			"import": "./dist/cli.js",
-			"require": "./dist/cli.js"
-		},
-		"./cli": {
-			"import": "./src/cli/index.ts",
-			"types": "./src/cli/types.ts"
-		},
-		"./config": {
-			"import": "./src/cli/config.ts"
-		},
-		"./commands": {
-			"import": "./src/cli/commands.ts"
-		}
-	},
-	"bin": {
-		"glance": "./dist/cli.js",
-		"web-glance": "./dist/cli.js"
-	},
-	"bugs": {
-		"url": "https://github.com/jkenley/glance-cli/issues"
-	},
-	"description": "AI-powered web reader for your terminal – Fetch, extract, and summarize webpages with local or cloud AI",
-	"engines": {
-		"node": ">=18.0.0",
-		"bun": ">=1.0.0"
-	},
-	"files": [
-		"dist",
-		"src",
-		"README.md",
-		"LICENSE",
-		"CHANGELOG.md"
-	],
-	"homepage": "https://github.com/jkenley/glance-cli#readme",
-	"keywords": [
-		"cli",
-		"ai",
-		"summarize",
-		"web",
-		"scraper",
-		"openai",
-		"gemini",
-		"elevenlabs",
-		"ollama",
-		"gpt",
-		"llm",
-		"content-extraction",
-		"web-reader",
-		"read-speak",
-		"terminal",
-		"screenshot"
-	],
-	"license": "MIT",
-	"publishConfig": {
-		"access": "public"
-	},
-	"scripts": {
-		"build": "bun run format && bun build ./src/cli.ts --outdir ./dist --target node --minify --external @elevenlabs/elevenlabs-js --external @google/genai --external openai --external puppeteer --external cheerio",
-		"prepublishOnly": "bun run build",
-		"test": "echo \"No tests defined\" && exit 0",
-		"dev": "bun run ./src/cli.ts",
-		"clean": "rm -rf dist",
-		"prepare": "bun run build",
-		"lint": "biome check",
-		"lint:fix": "biome check --write",
-		"format": "biome format --write"
-	},
-	"type": "module",
-	"optionalDependencies": {
-		"puppeteer": "^24.34.0"
-	}
+    "name": "glance-cli",
+    "version": "0.16.2",
+    "author": {
+        "name": "Kenley Jean",
+        "email": "alo@jkenley.me",
+        "url": "https://github.com/jkenley"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jkenley/glance-cli.git"
+    },
+    "dependencies": {
+        "@elevenlabs/elevenlabs-js": "^2.29.0",
+        "@google/genai": "^1.34.0",
+        "chalk": "^5.6.2",
+        "cheerio": "^1.1.2",
+        "clipboardy": "^5.0.2",
+        "openai": "^6.15.0",
+        "ora": "^9.0.0"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^2.3.11",
+        "@types/node": "^25.0.3",
+        "typescript": "^5.9.3"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/cli.js",
+            "require": "./dist/cli.js"
+        },
+        "./cli": {
+            "import": "./src/cli/index.ts",
+            "types": "./src/cli/types.ts"
+        },
+        "./config": {
+            "import": "./src/cli/config.ts"
+        },
+        "./commands": {
+            "import": "./src/cli/commands.ts"
+        }
+    },
+    "bin": {
+        "glance": "./dist/cli.js",
+        "web-glance": "./dist/cli.js"
+    },
+    "bugs": {
+        "url": "https://github.com/jkenley/glance-cli/issues"
+    },
+    "description": "AI-powered web reader for your terminal – Fetch, extract, and summarize webpages with local or cloud AI",
+    "engines": {
+        "node": ">=18.0.0",
+        "bun": ">=1.0.0"
+    },
+    "files": [
+        "dist",
+        "src",
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md"
+    ],
+    "homepage": "https://github.com/jkenley/glance-cli#readme",
+    "keywords": [
+        "cli",
+        "ai",
+        "summarize",
+        "web",
+        "scraper",
+        "openai",
+        "gemini",
+        "elevenlabs",
+        "ollama",
+        "gpt",
+        "llm",
+        "content-extraction",
+        "web-reader",
+        "read-speak",
+        "terminal",
+        "screenshot",
+        "browse",
+        "interactive"
+    ],
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "build": "bun run format && bun build ./src/cli.ts --outdir ./dist --target node --minify --external @elevenlabs/elevenlabs-js --external @google/genai --external openai --external puppeteer --external cheerio",
+        "prepublishOnly": "bun run build",
+        "test": "echo \"No tests defined\" && exit 0",
+        "dev": "bun run ./src/cli.ts",
+        "clean": "rm -rf dist",
+        "prepare": "bun run build",
+        "lint": "biome check",
+        "lint:fix": "biome check --write",
+        "format": "biome format --write"
+    },
+    "type": "module",
+    "optionalDependencies": {
+        "puppeteer": "^24.34.0"
+    }
 }

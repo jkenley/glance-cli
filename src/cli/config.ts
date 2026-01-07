@@ -3,7 +3,7 @@
  * Centralizes all configuration constants and settings
  */
 
-export const VERSION = "0.16.1";
+export const VERSION = "0.16.2";
 
 export const CONFIG = {
 	VERSION,
